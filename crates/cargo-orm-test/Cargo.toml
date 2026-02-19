@@ -1,0 +1,8 @@
+[package]
+name = "cargo-orm-test"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cargo-orm-core = {path="../cargo-orm-core"}
+cargo-orm-macros = {path="../cargo-orm-macros"}
