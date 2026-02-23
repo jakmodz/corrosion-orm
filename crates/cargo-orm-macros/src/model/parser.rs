@@ -52,13 +52,10 @@ fn parse_fields(fields:&mut Fields)-> syn::Result<(Vec<Field>, Option<PrimaryKey
     Ok((fields_vec, primary_key))
 }
 mod tests {
-    #[allow(unused_imports)]
-    use super::*;
-    #[allow(unused_imports)]
-    use syn::{parse_quote, Data, Fields};
-
     #[test]
     fn test_parse_model() {
+        use super::*;
+        use syn::{parse_quote};
         let input: DeriveInput = parse_quote! {
             #[table(name = "users")]
             struct User {
@@ -79,6 +76,8 @@ mod tests {
     }
     #[test]
     fn fail_multiple_primary_keys(){
+        use syn::{parse_quote};
+        use super::*;
         let mut input: DeriveInput = parse_quote! {
             #[table(name = "users")]
             struct User {
@@ -98,6 +97,8 @@ mod tests {
     }
     #[test]
     fn fail_missing_primary_key(){
+        use syn::{parse_quote};
+        use super::*;
         let mut input: DeriveInput = parse_quote! {
             #[table(name = "users")]
             struct User {
@@ -115,6 +116,9 @@ mod tests {
     }
     #[test]
     fn primary_key_with_generation_strategy(){
+        use syn::{parse_quote};
+        use super::*;
+        use cargo_orm_core::types::generation_strategy::GenerationType;
         let mut input: DeriveInput = parse_quote! {
             #[table(name = "users")]
             struct User {
