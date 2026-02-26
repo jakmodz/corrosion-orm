@@ -8,28 +8,28 @@ use proc_macro::TokenStream;
 use syn::{DeriveInput, parse_macro_input};
 
 /// Derive macro that generates ORM boilerplate for database entity.
-/// 
+///
 /// Annotate a struct with '#[derive(Model)]' to automaticly implement all needed traits
-/// 
+///
 /// # Container Attributes
-/// 
+///
 /// ### Placed at top of struct
-/// 
+///
 /// '#[Table]'
 /// possible attributes=> name: String
-/// 
-/// ### Example 
+///
+/// ### Example
 /// ```
 /// #[derive(Model)]
 /// #[Table(name = "users")]
 /// struct User;
 /// ```
-/// 
+///
 /// ### Placed above field of the struct
-/// 
+///
 /// '#[Column]'
 ///  possible attributes=> name: String,unique: bool,nullable: bool
-/// 
+///
 /// # Example
 /// ```
 /// #[Model]
@@ -38,7 +38,7 @@ use syn::{DeriveInput, parse_macro_input};
 ///     name: String
 ///}
 /// ```
-/// 
+///
 /// '#[PrimaryKey]'
 /// possible attributes=> generation_strategy: GenerationStrategy
 /// # Example
