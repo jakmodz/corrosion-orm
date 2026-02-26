@@ -4,7 +4,7 @@ mod tests {
     use cargo_orm_macros::Model;
 
     #[derive(Model)]
-    #[table(name = "users")]
+    #[Table(name = "users")]
     struct User {
         #[Column(name = "id")]
         #[PrimaryKey]
