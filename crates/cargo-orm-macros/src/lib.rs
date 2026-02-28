@@ -19,7 +19,7 @@ use syn::{DeriveInput, parse_macro_input};
 /// possible attributes=> name: String
 ///
 /// ### Example
-/// ```
+/// ```ignore
 /// #[derive(Model)]
 /// #[Table(name = "users")]
 /// struct User;
@@ -31,7 +31,7 @@ use syn::{DeriveInput, parse_macro_input};
 ///  possible attributes=> name: String,unique: bool,nullable: bool
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// #[Model]
 /// struct User {
 ///     #[Column(name= "nm",unique = true,nullable = false)]   
@@ -42,16 +42,16 @@ use syn::{DeriveInput, parse_macro_input};
 /// '#[PrimaryKey]'
 /// possible attributes=> generation_strategy: GenerationStrategy
 /// # Example
-/// ```
+/// ```ignore
 /// #[Model]
 /// struct User {
 ///     #[Column(name= "nm",unique = true,nullable = false)]   
-///     #[PrimaryKey(generation_strategy = GenerationStrategy::AutoIncrement)]
+///     #[PrimaryKey(generation_strategy = {GenerationStrategy::AutoIncrement})]
 ///     id: i64
 ///}
 /// ```
 /// # Examples
-/// ```
+/// ```ignore
 /// #[Model]
 /// #[Table(name = "users")]
 /// struct User {
