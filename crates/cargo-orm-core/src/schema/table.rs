@@ -26,6 +26,8 @@ pub struct ColumnSchemaModel {
     pub name: String,
     /// Whether the column is nullable or not
     pub is_nullable: bool,
+    /// Whether the column is unique or not
+    pub is_unique: bool,
     /// Type of the column
     pub sql_type: SqlType,
 }
@@ -47,11 +49,12 @@ pub struct PrimaryKeyModel {
     pub ty: SqlType,
 }
 impl ColumnSchemaModel {
-    pub fn new<T: ToSqlType>(name: String, is_nullable: bool, filed_type: T) -> Self {
+    pub fn new<T: ToSqlType>(name: String, is_nullable: bool, is_unique: bool, sql_type: SqlType) -> Self {
         Self {
             name,
             is_nullable,
-            sql_type: filed_type.to_sql_type(),
+            is_unique,
+            sql_type,
         }
     }
 }
