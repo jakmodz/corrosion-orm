@@ -1,5 +1,5 @@
 use crate::types::{
-    colum_type::{SqlType, ToSqlType},
+    column_type::{SqlType, ToSqlType},
     generation_strategy::GenerationType,
 };
 
