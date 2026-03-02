@@ -1,7 +1,7 @@
-use crate::types::{
+use crate::{types::{
     column_type::{SqlType, ToSqlType},
     generation_strategy::GenerationType,
-};
+}};
 
 pub trait TableSchema {
     /// Method to get the table name
