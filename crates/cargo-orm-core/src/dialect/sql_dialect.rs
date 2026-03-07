@@ -46,10 +46,7 @@ pub trait SqlDialect {
     }
     /// Generates `CREATE TABLE … (…);`.
     /// Validates the schema first — returns [`SchemaValidationError`] if invalid.
-    fn generate_ddl(
-        &self,
-        schema: &TableSchemaModel,
-    ) -> Result<String, SchemaValidationError> {
+    fn generate_ddl(&self, schema: &TableSchemaModel) -> Result<String, SchemaValidationError> {
         self.build_create_table_ddl(schema, false)
     }
 

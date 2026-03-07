@@ -32,12 +32,12 @@ pub fn generate_schema_impl(table: &TableData) -> TokenStream {
         }
     }
 }
-fn generate_field(field: &Field)->TokenStream{
+fn generate_field(field: &Field) -> TokenStream {
     let field_name = &field.name;
     let field_type = &field.ty;
     let is_nullable = field.is_nullable;
     let is_unique = field.is_unique;
-    let sql_ty = match &field.column_definition{
+    let sql_ty = match &field.column_definition {
         Some(ty) => quote! {
             cargo_orm_core::types::column_type::SqlType::Custom(String::from(#ty))
         },
@@ -47,7 +47,7 @@ fn generate_field(field: &Field)->TokenStream{
             )
         },
     };
-    quote!{
+    quote! {
         cargo_orm_core::schema::table::ColumnSchemaModel::new::<#field_type>(
             String::from(#field_name),
             #is_nullable,

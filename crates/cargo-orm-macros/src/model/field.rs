@@ -13,7 +13,6 @@ pub struct ColumnAttribute {
     pub(crate) nullable: bool,
     #[deluxe(default = None)]
     pub(crate) column_definition: Option<String>,
-    
 }
 #[derive(Clone, Debug)]
 pub struct Field {
@@ -33,7 +32,7 @@ impl From<(ColumnAttribute, &syn::Field)> for Field {
         } else {
             attr.name
         };
-        
+
         let is_nullable = attr.nullable || is_option_type(&syn_field.ty);
         Field {
             iden: syn_field.ident.clone().unwrap(),
@@ -41,7 +40,7 @@ impl From<(ColumnAttribute, &syn::Field)> for Field {
             ty: syn_field.ty.clone(),
             is_unique: attr.unique,
             is_nullable,
-            column_definition: attr.column_definition
+            column_definition: attr.column_definition,
         }
     }
 }

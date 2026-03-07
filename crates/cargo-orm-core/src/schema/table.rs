@@ -2,31 +2,38 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::{types::{
+use crate::types::{
     column_type::{SqlType, ToSqlType},
     generation_strategy::GenerationType,
-}};
+};
 
 /// **Validation of primary keys like no primary in table or multiple of them is handled in parsing IR of table**
-#[derive(Error,Debug)]
-pub enum SchemaValidationError{
+#[derive(Error, Debug)]
+pub enum SchemaValidationError {
     #[error("Table {table_name} has mulitple fields with the same name: {field_name:?}")]
-    MulitpleFiledsWithSameName{table_name:String, field_name:String},
+    MulitpleFiledsWithSameName {
+        table_name: String,
+        field_name: String,
+    },
     #[error("Table '{table_name}' has a column with an empty name")]
     EmptyColumnName { table_name: String },
-    #[error("Table {0} has a primary key with generation strategy that is not supported for its type")]
+    #[error(
+        "Table {0} has a primary key with generation strategy that is not supported for its type"
+    )]
     UnsupportedGenerationStrategy(String),
     #[error("Table has an empty name")]
     EmptyTableName,
     #[error("Table '{table_name}' has multiple fields with the same name: '{field_name}'")]
-    MultipleFieldsWithSameName { table_name: String, field_name: String },
+    MultipleFieldsWithSameName {
+        table_name: String,
+        field_name: String,
+    },
     #[error("Table '{table_name}': primary key name '{pk_name}' collides with a column name")]
     PrimaryKeyNameCollidesWithColumn { table_name: String, pk_name: String },
     #[error("Table '{0}': AutoIncrement requires an Integer primary key, but got {1:?}")]
     AutoIncrementRequiresInteger(String, SqlType),
     #[error("Table '{0}': primary key has an unsupported type {1:?}")]
     UnsupportedPrimaryKeyType(String, SqlType),
-    
 }
 
 pub trait TableSchema {
@@ -129,7 +136,12 @@ impl TableSchemaModel {
 }
 
 impl ColumnSchemaModel {
-    pub fn new<T: ToSqlType>(name: String, is_nullable: bool, is_unique: bool, sql_type: SqlType) -> Self {
+    pub fn new<T: ToSqlType>(
+        name: String,
+        is_nullable: bool,
+        is_unique: bool,
+        sql_type: SqlType,
+    ) -> Self {
         Self {
             name,
             is_nullable,

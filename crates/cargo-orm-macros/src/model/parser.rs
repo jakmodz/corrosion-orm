@@ -42,7 +42,7 @@ fn parse_fields(fields: &mut Fields) -> syn::Result<(Vec<Field>, Option<PrimaryK
 
         let col_attr: ColumnAttribute = deluxe::extract_attributes(field)?;
         let pk_attr: PrimaryKeyAttribute = deluxe::extract_attributes(field)?;
-        
+
         if has_pk {
             if primary_key.is_some() {
                 return Err(syn::Error::new(
