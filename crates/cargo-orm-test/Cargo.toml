@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 cargo-orm-core = {path="../cargo-orm-core"}
 cargo-orm-macros = {path="../cargo-orm-macros"}
+insta = { workspace = true }
