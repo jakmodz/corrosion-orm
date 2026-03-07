@@ -7,3 +7,5 @@ edition = "2024"
 cargo-orm-core = {path="../cargo-orm-core"}
 cargo-orm-macros = {path="../cargo-orm-macros"}
 insta = { workspace = true }
+tokio = { workspace = true }
+sqlx = {version = "0.8.6", features = ["runtime-tokio","sqlite"]}
