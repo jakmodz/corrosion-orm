@@ -2,7 +2,7 @@
 source: crates/cargo-orm-test/src/dialect/mod.rs
 expression: ddl
 ---
-CREATE TABLE test_table (
+CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     name TEXT NULL UNIQUE
 );
