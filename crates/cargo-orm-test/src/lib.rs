@@ -1,5 +1,5 @@
 pub mod dialect;
-
+pub mod from_row_impl;
 #[cfg(test)]
 mod tests {
     use cargo_orm_core::{schema::table::TableSchema, types::column_type::SqlType};
