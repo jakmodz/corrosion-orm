@@ -29,11 +29,23 @@ impl ConnectionConfig for SqliteConfig {
         if url.is_empty() {
             return Err(ConnectionConfigError::EnvFileNotFound);
         }
+        let max_connections = std::env::var("MAX_CONNECTIONS")
+            .unwrap_or("1".to_string())
+            .parse()
+            .unwrap_or(1);
+        let min_connections = std::env::var("MIN_CONNECTIONS")
+            .unwrap_or("0".to_string())
+            .parse()
+            .unwrap_or(0);
+        let connection_timeout_ms = std::env::var("CONNECTION_TIMEOUT_MS")
+            .unwrap_or("3000".to_string())
+            .parse()
+            .unwrap_or(3000);
         Ok(Self {
             url,
-            max_connections: 1,
-            min_connections: 0,
-            connection_timeout_ms: 3000,
+            max_connections,
+            min_connections,
+            connection_timeout_ms,
         })
     }
 }
