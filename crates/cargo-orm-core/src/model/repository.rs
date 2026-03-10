@@ -1,4 +1,7 @@
-use crate::{driver::{sql_driver::SqlDriver,executor::Executor}, error::CargoOrmError};
+use crate::{
+    driver::{executor::Executor, sql_driver::SqlDriver},
+    error::CargoOrmError,
+};
 
 pub trait Repository: Sized + Sync {
     type PrimaryKey;

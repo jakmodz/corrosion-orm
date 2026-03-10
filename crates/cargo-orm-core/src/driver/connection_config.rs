@@ -1,11 +1,11 @@
 use thiserror::Error;
 
-use crate::driver::error::DriverError;
-use crate::error::CargoOrmError;
 #[derive(Debug, Error)]
 pub enum ConnectionConfigError {
     #[error("Url to database is empty")]
     EmptyUrl,
+    #[error("Env file not found")]
+    EnvFileNotFound,
 }
 
 pub trait ConnectionConfig {
@@ -19,12 +19,13 @@ pub trait ConnectionConfig {
     fn connection_timeout_ms(&self) -> u64 {
         5000
     }
-    fn validate(&self) -> Result<(), CargoOrmError> {
+    fn validate(&self) -> Result<(), ConnectionConfigError> {
         if self.url().is_empty() {
-            return Err(CargoOrmError::DriverError(
-                DriverError::InvalidConfiguration(ConnectionConfigError::EmptyUrl),
-            ));
+            return Err(ConnectionConfigError::EmptyUrl);
         }
         Ok(())
     }
+    fn from_env() -> Result<Self, ConnectionConfigError>
+    where
+        Self: Sized;
 }
