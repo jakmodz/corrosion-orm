@@ -1,8 +1,8 @@
-use crate::{driver::sql_driver::SqlDriver, error::CargoOrmError};
+use crate::{driver::{sql_driver::SqlDriver,executor::Executor}, error::CargoOrmError};
 
 pub trait Repository: Sized + Sync {
     type PrimaryKey;
-    type Db: SqlDriver;
+    type Db: Executor;
 
     async fn save<'db>(&self, db: &'db Self::Db) -> Result<Self, CargoOrmError>;
     async fn get_all<'db>(db: &'db Self::Db) -> Result<Vec<Self>, CargoOrmError>;
