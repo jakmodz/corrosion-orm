@@ -11,7 +11,7 @@ use crate::types::{
 #[derive(Error, Debug)]
 pub enum SchemaValidationError {
     #[error("Table {table_name} has mulitple fields with the same name: {field_name:?}")]
-    MulitpleFiledsWithSameName {
+    MulitpleFieldsWithSameName {
         table_name: String,
         field_name: String,
     },
@@ -23,11 +23,6 @@ pub enum SchemaValidationError {
     UnsupportedGenerationStrategy(String),
     #[error("Table has an empty name")]
     EmptyTableName,
-    #[error("Table '{table_name}' has multiple fields with the same name: '{field_name}'")]
-    MultipleFieldsWithSameName {
-        table_name: String,
-        field_name: String,
-    },
     #[error("Table '{table_name}': primary key name '{pk_name}' collides with a column name")]
     PrimaryKeyNameCollidesWithColumn { table_name: String, pk_name: String },
     #[error("Table '{0}': AutoIncrement requires an Integer primary key, but got {1:?}")]
@@ -125,7 +120,7 @@ impl TableSchemaModel {
                         pk_name: pk.name.clone(),
                     });
                 }
-                return Err(SchemaValidationError::MultipleFieldsWithSameName {
+                return Err(SchemaValidationError::MulitpleFieldsWithSameName {
                     table_name: self.name.clone(),
                     field_name: col.name.clone(),
                 });
