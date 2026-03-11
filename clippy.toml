@@ -1,0 +1,4 @@
+disallowed-types = [
+    { path = "sqlx::SqlitePool", reason = "Use CargoSqlitePool wrapper instead" },
+    { path = "sqlx::Executor", reason = "Use our Executor trait instead" },
+]
