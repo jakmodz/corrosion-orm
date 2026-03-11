@@ -1,5 +1,6 @@
 use crate::{driver::executor::Executor, error::CargoOrmError};
 
+#[trait_variant::make(Repo: Send)]
 pub trait Repository: Sized + Sync {
     type PrimaryKey;
     type Db: Executor;

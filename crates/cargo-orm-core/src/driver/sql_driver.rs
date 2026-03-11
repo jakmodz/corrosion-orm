@@ -6,20 +6,15 @@ use crate::{
     error::CargoOrmError,
 };
 /// Represents a SQL driver that provides connection pooling and transaction management.
+#[trait_variant::make(SqlDriv: Send)]
 pub trait SqlDriver: Sized + Sync + Send {
     type Pool: ConnectionPool;
 
     async fn new(config: <Self::Pool as ConnectionPool>::Config) -> Result<Self, CargoOrmError>;
-    async fn acquire_conn(&self) -> Result<ConnectionGuard<Self::Pool>, CargoOrmError> {
-        self.pool().acquire_conn().await
-    }
+    async fn acquire_conn(&self) -> Result<ConnectionGuard<Self::Pool>, CargoOrmError>;
 
-    fn active_connections(&self) -> u32 {
-        self.pool().active_conn()
-    }
+    fn active_connections(&self) -> u32;
 
     fn pool(&self) -> &Self::Pool;
-    async fn transaction(&self) -> Result<Transaction<Self::Pool>, CargoOrmError> {
-        self.pool().begin_transaction().await
-    }
+    async fn transaction(&self) -> Result<Transaction<Self::Pool>, CargoOrmError>;
 }

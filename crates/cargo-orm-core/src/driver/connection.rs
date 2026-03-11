@@ -1,6 +1,7 @@
 use crate::error::CargoOrmError;
 
 /// Trait for single database connection.
+#[trait_variant::make(Conn: Send)]
 pub trait Connection: Sized + Sync + Send {
     /// Pings the connection to check if it is still valid.
     async fn ping_conn(&mut self) -> Result<(), CargoOrmError>;

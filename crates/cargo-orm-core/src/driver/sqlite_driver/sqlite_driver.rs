@@ -1,6 +1,10 @@
-use crate::driver::{
-    connection_pool::ConnectionPool, sql_driver::SqlDriver,
-    sqlite_driver::sqlite_connection_pool::CargoSqlitePool,
+use crate::{
+    CargoOrmError,
+    driver::{
+        connection_pool::{ConnectionGuard, ConnectionPool},
+        sql_driver::SqlDriver,
+        sqlite_driver::sqlite_connection_pool::CargoSqlitePool,
+    },
 };
 
 pub struct SqliteDriver {
@@ -12,7 +16,7 @@ impl SqlDriver for SqliteDriver {
 
     async fn new(
         config: <Self::Pool as crate::driver::connection_pool::ConnectionPool>::Config,
-    ) -> Result<Self, crate::error::CargoOrmError> {
+    ) -> Result<Self, CargoOrmError> {
         let pool = CargoSqlitePool::new_pool(config).await?;
         Ok(Self { pool })
     }
@@ -21,9 +25,16 @@ impl SqlDriver for SqliteDriver {
     }
     async fn transaction(
         &self,
-    ) -> Result<crate::driver::transaction::Transaction<Self::Pool>, crate::error::CargoOrmError>
-    {
+    ) -> Result<crate::driver::transaction::Transaction<Self::Pool>, CargoOrmError> {
         let tx = self.pool.begin_transaction().await?;
         Ok(tx)
+    }
+
+    async fn acquire_conn(&self) -> Result<ConnectionGuard<Self::Pool>, CargoOrmError> {
+        self.pool.acquire_conn().await
+    }
+
+    fn active_connections(&self) -> u32 {
+        self.pool.active_conn()
     }
 }

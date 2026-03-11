@@ -46,6 +46,7 @@ impl ConnectionPool for CargoSqlitePool {
     }
 
     async fn close(self) -> Result<(), CargoOrmError> {
+        #![allow(clippy::disallowed_types)]
         sqlx::SqlitePool::close(&self.inner).await;
         Ok(())
     }

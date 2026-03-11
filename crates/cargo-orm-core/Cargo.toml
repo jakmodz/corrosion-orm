@@ -11,3 +11,4 @@ deluxe  = { workspace = true }
 thiserror = { workspace = true }
 sqlx = { version = "0.8.6", optional = true, default-features = false }
 tokio = { workspace = true }
+trait-variant = "0.1.2"

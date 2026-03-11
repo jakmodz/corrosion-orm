@@ -33,6 +33,7 @@ impl<P: ConnectionPool> Executor for ConnectionGuard<P> {
     }
 }
 /// A connection pool for managing database connections.
+#[trait_variant::make(ConnPool: Send)]
 pub trait ConnectionPool: Sized + Send + Sync {
     type Conn: super::connection::Connection;
     type Config: super::connection_config::ConnectionConfig;
