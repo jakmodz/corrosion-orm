@@ -15,6 +15,7 @@ pub use driver::sqlite_driver::{
     sqlite_connection_pool::CargoSqlitePool,
     sqlite_driver::SqliteDriver,
 };
+pub use model::repository::Repository;
 
 pub mod prelude {
     pub use crate::driver::connection::Connection;
