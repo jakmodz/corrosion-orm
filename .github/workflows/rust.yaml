@@ -3,6 +3,14 @@ on: push
 env:
   CARGO_TERM_COLOR: always
 jobs:
+    audit:
+      name: Audit
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+        - name: Check dependencies
+          run: cargo audit
     fmt:
       name: Rustfmt
       runs-on: ubuntu-latest
