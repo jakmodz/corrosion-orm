@@ -49,7 +49,7 @@ impl<'clause> WhereClauseType<'clause> {
         needs_parens: bool,
     ) {
         if needs_parens {
-            ctx.sql.push_str("(");
+            ctx.sql.push('(');
         }
 
         match self {
@@ -77,7 +77,7 @@ impl<'clause> WhereClauseType<'clause> {
         }
 
         if needs_parens {
-            ctx.sql.push_str(")");
+            ctx.sql.push(')');
         }
     }
 }
@@ -140,7 +140,7 @@ impl<'clause> ToSql for Condition<'clause> {
                     }
                     ctx.push_bind_param(value.clone(), dialect);
                 }
-                ctx.sql.push_str(")");
+                ctx.sql.push(')');
             }
             Condition::NotIn(col, values) => {
                 ctx.sql.push_str(col);
@@ -151,7 +151,7 @@ impl<'clause> ToSql for Condition<'clause> {
                     }
                     ctx.push_bind_param(value.clone(), dialect);
                 }
-                ctx.sql.push_str(")");
+                ctx.sql.push(')');
             }
             Condition::IsNull(col) => {
                 ctx.sql.push_str(col);
