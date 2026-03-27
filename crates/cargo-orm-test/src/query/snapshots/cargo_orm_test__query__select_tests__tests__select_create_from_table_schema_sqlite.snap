@@ -1,4 +1,4 @@
-cat crates/cargo-orm-test/src/query/update_tests.rs | tail -c 10 | od -c---
+---
 source: crates/cargo-orm-test/src/query/select_tests.rs
 expression: ctx.sql
 ---

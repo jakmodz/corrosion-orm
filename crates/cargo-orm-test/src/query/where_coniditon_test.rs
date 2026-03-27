@@ -404,6 +404,6 @@ mod tests {
         let mut ctx = QueryContext::new();
         let dialect = MockSqliteDialect;
         clause.to_sql(&mut ctx, &dialect);
-        insta::assert_snapshot!(ctx.sql, @"age = ? AND active = ?");
+        insta::assert_snapshot!(ctx.sql, @" WHERE age = ? AND active = ?");
     }
 }
