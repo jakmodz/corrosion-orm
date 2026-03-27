@@ -55,7 +55,7 @@ impl<'col> Select<'col> {
 impl ToSql for Select<'_> {
     fn to_sql(&self, ctx: &mut super::query_type::QueryContext, _dialect: &dyn SqlDialect) {
         ctx.sql.push_str(&format!(
-            "SELECT {} FROM {} ",
+            "SELECT {} FROM {}",
             if self.columns.is_empty() {
                 String::from("*")
             } else {
@@ -63,6 +63,9 @@ impl ToSql for Select<'_> {
             },
             self.table
         ));
+        if let Some(where_clause) = &self.where_clause {
+            where_clause.to_sql(ctx, _dialect);
+        }
         if let Some(limit) = self.limit {
             ctx.sql.push_str(&format!(" LIMIT {}", limit));
         }
