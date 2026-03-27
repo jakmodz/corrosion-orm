@@ -35,6 +35,7 @@ pub struct WhereClause<'clause> {
 
 impl<'clause> ToSql for WhereClause<'clause> {
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
+        ctx.sql.push_str(" WHERE ");
         self.clause.to_sql(ctx, dialect);
     }
 }

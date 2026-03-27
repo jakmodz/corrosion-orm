@@ -43,7 +43,6 @@ impl<'query> ToSql for Update<'query> {
         }
 
         if let Some(where_clause) = &self.where_clause {
-            ctx.sql.push_str(" WHERE ");
             where_clause.to_sql(ctx, dialect);
         }
     }
