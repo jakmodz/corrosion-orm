@@ -11,44 +11,52 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
     }
 
     let pk_ident = &table.primary_key.iden;
-    let pk_name = &table.primary_key.name;
     let field_idents: Vec<_> = table.fields.iter().map(|f| &f.iden).collect();
-    let field_names: Vec<_> = table.fields.iter().map(|f| &f.name).collect();
 
     quote! {
+        impl #ident{
+            fn get_values_from_self(&self) -> Vec<cargo_orm_core::query::query_type::Value> {
+                let mut values = Vec::new();
+                values.push(cargo_orm_core::query::query_type::Value::from(self.#pk_ident.clone()));
+                #(
+                    values.push(cargo_orm_core::query::query_type::Value::from(self.#field_idents.clone()));
+                )*
+                values
+            }
+        }
+
         impl<Db: cargo_orm_core::driver::executor::Executor> cargo_orm_core::model::repository::Repo<Db> for #ident {
             type PrimaryKey = #primary_key_ty;
 
             async fn save(&self, db: &mut Db) -> Result<Self, cargo_orm_core::error::CargoOrmError> {
                 use cargo_orm_core::query::to_sql::ToSql;
                 use cargo_orm_core::schema::table::TableSchema;
-                use std::default::Default;
+                use cargo_orm_core::query::where_clause::WhereClause;
 
                 let schema = Self::get_schema();
-                let dialect = db.get_dialect();
 
-                let is_new = self.#pk_ident == <#primary_key_ty as Default>::default();
+                let is_new_query = cargo_orm_core::query::select::Select::from(&schema)
+                    .where_clause(
+                        WhereClause::eq(&schema.primary_key.name, self.#pk_ident.clone()),
+                );
 
-                if is_new {
-                    let mut insert_query = cargo_orm_core::query::insert::Insert::new(#ident::get_table_name())
-                        .columns(vec![#(std::borrow::Cow::Borrowed(#col_names)),*]);
+                let mut ctx_control = cargo_orm_core::query::query_type::QueryContext::new();
+                is_new_query.to_sql(&mut ctx_control, db.get_dialect());
+                let is_new = db.execute_query(&mut ctx_control).await?;
 
-                    let mut values = Vec::new();
-                    values.push(cargo_orm_core::query::query_type::Value::from(self.#pk_ident.clone()));
-
-                    #(
-                        values.push(cargo_orm_core::query::query_type::Value::from(self.#field_idents.clone()));
-                    )*
-
-                    insert_query = insert_query.values(values);
-                    let mut ctx = cargo_orm_core::query::query_type::QueryContext::new();
-                    insert_query.to_sql(&mut ctx, dialect);
+                let mut ctx = cargo_orm_core::query::query_type::QueryContext::new();
+                if is_new == 0 {
+                    let mut insert_query = cargo_orm_core::query::insert::Insert::from(&schema)
+                        .values(self.get_values_from_self());
+                    insert_query.to_sql(&mut ctx, db.get_dialect());
                     db.execute_query(&mut ctx).await?;
                 } else {
-                    //TODO: update query instead of insert
-                    todo!()
+                    let mut update_query = cargo_orm_core::query::update::Update::from(&schema)
+                        .values(self.get_values_from_self())
+                        .where_clause(WhereClause::eq(&schema.primary_key.name, self.#pk_ident.clone()));
+                    update_query.to_sql(&mut ctx, db.get_dialect());
+                    db.execute_query(&mut ctx).await?;
                 }
-
                 Ok(self.clone())
             }
 

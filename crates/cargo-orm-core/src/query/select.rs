@@ -64,6 +64,7 @@ impl ToSql for Select<'_> {
             self.table
         ));
         if let Some(where_clause) = &self.where_clause {
+            ctx.sql.push_str(" WHERE ");
             where_clause.to_sql(ctx, _dialect);
         }
         if let Some(limit) = self.limit {
@@ -85,6 +86,7 @@ impl<'col> From<&'col TableSchemaModel> for Select<'col> {
         }
     }
 }
+
 mod tests {
 
     #[test]

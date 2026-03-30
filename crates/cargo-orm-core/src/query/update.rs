@@ -16,45 +16,59 @@ pub struct Update<'query> {
     where_clause: Option<WhereClause<'query>>,
 }
 impl<'query> Update<'query> {
-    pub fn from_model(model: &'query TableSchemaModel) -> Self {
+    pub fn new() -> Self {
         Self {
-            table: Cow::Owned(model.name.clone()),
-            columns: model
-                .fields
-                .iter()
-                .map(|f| Cow::Owned(f.name.clone()))
-                .collect(),
+            table: Cow::Owned(String::new()),
+            columns: Vec::new(),
             values: Vec::new(),
             where_clause: None,
         }
+    }
+    pub fn table(mut self, table: Cow<'query, str>) -> Self {
+        self.table = table;
+        self
+    }
+    pub fn where_clause(mut self, where_clause: WhereClause<'query>) -> Self {
+        self.where_clause = Some(where_clause);
+        self
+    }
+    pub fn columns(mut self, columns: Vec<Cow<'query, str>>) -> Self {
+        self.columns = columns;
+        self
+    }
+    pub fn values(mut self, values: Vec<Value>) -> Self {
+        self.values = values;
+        self
     }
 }
 impl<'query> ToSql for Update<'query> {
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         ctx.sql
             .push_str(&format!("UPDATE {} SET ", self.table.as_ref()));
-        let mut iter = self.columns.iter().zip(self.values.iter());
-        while let Some((column, value)) = iter.next() {
+        let pairs: Vec<_> = self.columns.iter().zip(self.values.iter()).collect();
+        for (i, (column, value)) in pairs.iter().enumerate() {
             ctx.sql.push_str(&format!("{} = ", column.as_ref()));
-            ctx.push_bind_param(value.clone(), dialect);
-            if iter.next().is_some() {
+            ctx.push_bind_param((*value).clone(), dialect);
+            if i + 1 < pairs.len() {
                 ctx.sql.push_str(", ");
             }
         }
 
         if let Some(where_clause) = &self.where_clause {
+            ctx.sql.push_str(" WHERE ");
             where_clause.to_sql(ctx, dialect);
         }
     }
 }
-impl<'query> From<TableSchemaModel> for Update<'query> {
-    fn from(value: TableSchemaModel) -> Self {
+
+impl<'query> From<&'query TableSchemaModel> for Update<'query> {
+    fn from(schema: &'query TableSchemaModel) -> Self {
         Update {
-            table: Cow::Owned(value.name),
-            columns: value
-                .fields
+            table: Cow::Borrowed(&schema.name),
+            columns: schema
+                .get_column_names()
                 .into_iter()
-                .map(|f| Cow::Owned(f.name))
+                .map(Cow::Borrowed)
                 .collect(),
             values: vec![],
             where_clause: None,
