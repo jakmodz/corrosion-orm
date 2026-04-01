@@ -12,8 +12,6 @@ pub struct Insert<'query> {
     columns: Vec<Cow<'query, str>>,
     values: Vec<Value>,
 }
-#[derive(Debug)]
-pub enum InsertValue {}
 impl<'query> Insert<'query> {
     pub fn new(table: &'query str) -> Self {
         Self {
