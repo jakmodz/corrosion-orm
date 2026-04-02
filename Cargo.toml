@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "crates/cargo-orm-core",
-    "crates/cargo-orm-macros",
-    "crates/cargo-orm-test"
+    "crates/corrosion-orm-core",
+    "crates/corrosion-orm-macros",
+    "crates/corrosion-orm-test"
 ]
 resolver = "3"
 

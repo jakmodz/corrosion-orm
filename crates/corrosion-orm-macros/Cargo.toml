@@ -1,0 +1,16 @@
+[package]
+name = "corrosion-orm-macros"
+version = "0.1.0"
+edition = "2024"
+
+
+
+[lib]
+proc-macro = true
+[dependencies]
+syn = {workspace = true}
+quote = {workspace = true}
+proc-macro2 = {workspace = true}
+deluxe= {workspace= true}
+anyhow = {workspace = true}
+corrosion-orm-core = {path = "../corrosion-orm-core"}

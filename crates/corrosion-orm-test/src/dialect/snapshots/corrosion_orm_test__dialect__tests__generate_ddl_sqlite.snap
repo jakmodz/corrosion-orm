@@ -1,0 +1,8 @@
+---
+source: crates/corrosion-orm-test/src/dialect/mod.rs
+expression: ddl
+---
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    name TEXT NULL UNIQUE
+);

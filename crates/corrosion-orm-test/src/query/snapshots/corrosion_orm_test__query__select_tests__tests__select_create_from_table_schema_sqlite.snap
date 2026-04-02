@@ -1,0 +1,5 @@
+---
+source: crates/corrosion-orm-test/src/query/select_tests.rs
+expression: ctx.sql
+---
+SELECT id, name FROM users

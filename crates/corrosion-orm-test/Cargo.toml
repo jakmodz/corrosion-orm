@@ -1,0 +1,12 @@
+[package]
+name = "corrosion-orm-test"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+corrosion-orm-core = {path="../corrosion-orm-core", features = ["sqlite","test-utils"]}
+corrosion-orm-macros = {path="../corrosion-orm-macros"}
+insta = { workspace = true }
+tokio = { workspace = true }
+sqlx = {version = "0.8.6", features = ["runtime-tokio","sqlite"]}
+log = { workspace = true }
+env_logger = "0.11.10"
