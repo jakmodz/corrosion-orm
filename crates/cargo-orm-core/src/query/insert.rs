@@ -18,7 +18,7 @@ use crate::{
 /// use cargo_orm_core::query::insert::Insert;
 /// let query = Insert::new("users")
 ///     .columns(vec!["name", "email"])
-///     .values(vec!["John", "john@example.com"]);
+///     .values(vec![String::from("John"), String::from("john@example.com")]);
 /// ```
 pub struct Insert<'query> {
     table: Cow<'query, str>,

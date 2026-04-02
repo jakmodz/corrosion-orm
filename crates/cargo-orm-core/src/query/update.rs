@@ -17,10 +17,11 @@ use std::borrow::Cow;
 ///
 /// ```
 /// use cargo_orm_core::query::update::Update;
+/// use std::borrow::Cow;
 /// let query = Update::new()
-///     .table("users")
+///     .table(Cow::Borrowed("users"))
 ///     .columns(vec!["name"])
-///     .values(vec!["Jane"]);
+///     .table(std::borrow::Cow::Borrowed("users"));
 /// ```
 pub struct Update<'query> {
     table: Cow<'query, str>,
