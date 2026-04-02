@@ -32,6 +32,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 use cargo_orm_core::query::to_sql::ToSql;
                 use cargo_orm_core::schema::table::TableSchema;
                 use cargo_orm_core::query::where_clause::WhereClause;
+                use cargo_orm_core::query::query_type::QueryContext;
 
                 let schema = Self::get_schema();
 
@@ -44,7 +45,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 is_new_query.to_sql(&mut ctx_control, db.get_dialect());
                 let is_new = db.execute_query(&mut ctx_control).await?;
 
-                let mut ctx = cargo_orm_core::query::query_type::QueryContext::new();
+                let mut ctx = QueryContext::new();
                 if is_new == 0 {
                     let mut insert_query = cargo_orm_core::query::insert::Insert::from(&schema)
                         .values(self.get_values_from_self());
@@ -61,13 +62,25 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
             }
 
             async fn get_all(db: &mut Db) -> Result<Vec<Self>, cargo_orm_core::error::CargoOrmError> {
-                todo!()
+                todo!();
             }
             async fn get_by_id(id: Self::PrimaryKey, db: &mut Db) -> Result<Self, cargo_orm_core::error::CargoOrmError> {
                 todo!()
             }
-            async fn delete_by_id(id: Self::PrimaryKey, db: &mut Db) -> Result<(), cargo_orm_core::error::CargoOrmError> {
-                todo!()
+            async fn delete(self, db: &mut Db) -> Result<(), cargo_orm_core::error::CargoOrmError> {
+                use cargo_orm_core::query::to_sql::ToSql;
+                use cargo_orm_core::schema::table::TableSchema;
+                use cargo_orm_core::query::where_clause::WhereClause;
+                use cargo_orm_core::query::query_type::QueryContext;
+                use cargo_orm_core::query::delete::Delete;
+
+                let mut ctx = QueryContext::new();
+                let schema = Self::get_schema();
+                let mut delete_query = Delete::from(&schema)
+                    .where_clause(WhereClause::eq(&schema.primary_key.name, self.#pk_ident.clone()));
+                delete_query.to_sql(&mut ctx, db.get_dialect());
+                db.execute_query(&mut ctx).await?;
+                Ok(())
             }
         }
     }
