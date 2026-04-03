@@ -13,4 +13,6 @@ pub enum DriverError {
     Sqlx(#[from] sqlx::Error),
     #[error("connection closed")]
     ConnectionClosed,
+    #[error("resource not found")]
+    NotFound,
 }

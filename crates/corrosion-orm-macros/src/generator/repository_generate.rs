@@ -58,14 +58,42 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     update_query.to_sql(&mut ctx, db.get_dialect());
                     db.execute_query(&mut ctx).await?;
                 }
-                Ok(self.clone())
-            }
+                let mut fetch_ctx = QueryContext::new();
+                let fetch_query = corrosion_orm_core::query::select::Select::from(&schema)
+                    .where_clause(WhereClause::eq(&schema.primary_key.name, self.#pk_ident.clone()));
+                fetch_query.to_sql(&mut fetch_ctx, db.get_dialect());
+                let saved = db.fetch_optional::<Self>(&mut fetch_ctx).await?;
 
+                saved.ok_or(corrosion_orm_core::driver::error::DriverError::NotFound.into())
+            }
             async fn get_all(db: &mut Db) -> Result<Vec<Self>, corrosion_orm_core::error::CorrosionOrmError> {
-                todo!();
+                use corrosion_orm_core::query::to_sql::ToSql;
+                use corrosion_orm_core::schema::table::TableSchema;
+                use corrosion_orm_core::query::where_clause::WhereClause;
+                use corrosion_orm_core::query::query_type::QueryContext;
+                let mut ctx = QueryContext::new();
+                let schema = Self::get_schema();
+                let query = corrosion_orm_core::query::select::Select::from(&schema);
+                query.to_sql(&mut ctx, db.get_dialect());
+                let results = db.fetch_all::<Self>(&mut ctx).await?;
+                Ok(results)
             }
             async fn get_by_id(id: Self::PrimaryKey, db: &mut Db) -> Result<Self, corrosion_orm_core::error::CorrosionOrmError> {
-                todo!()
+                use corrosion_orm_core::query::to_sql::ToSql;
+                use corrosion_orm_core::schema::table::TableSchema;
+                use corrosion_orm_core::query::where_clause::WhereClause;
+                use corrosion_orm_core::query::query_type::QueryContext;
+                let mut ctx = QueryContext::new();
+                let schema = Self::get_schema();
+                let query = corrosion_orm_core::query::select::Select::from(&schema)
+                    .where_clause(WhereClause::eq(&schema.primary_key.name, id.clone()));
+                query.to_sql(&mut ctx, db.get_dialect());
+                let result = db.fetch_optional::<Self>(&mut ctx).await?;
+                if let Some(result) = result {
+                    Ok(result)
+                } else {
+                    Err(corrosion_orm_core::driver::error::DriverError::NotFound.into())
+                }
             }
             async fn delete(self, db: &mut Db) -> Result<(), corrosion_orm_core::error::CorrosionOrmError> {
                 use corrosion_orm_core::query::to_sql::ToSql;

@@ -1,3 +1,5 @@
+use sqlx::FromRow;
+
 use crate::{
     dialect::sql_dialect::SqlDialect,
     driver::{connection::Connection, executor::Executor, transaction::Transaction},
@@ -36,6 +38,26 @@ impl<P: ConnectionPool> Executor for ConnectionGuard<P> {
 
     fn get_dialect(&self) -> &dyn SqlDialect {
         self.conn.get_dialect()
+    }
+
+    async fn fetch_one<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<E, CorrosionOrmError> {
+        self.conn.fetch_one(ctx).await
+    }
+
+    async fn fetch_all<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<Vec<E>, CorrosionOrmError> {
+        self.conn.fetch_all(ctx).await
+    }
+    async fn fetch_optional<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<Option<E>, CorrosionOrmError> {
+        self.conn.fetch_optional(ctx).await
     }
 }
 /// A connection pool for managing database connections.

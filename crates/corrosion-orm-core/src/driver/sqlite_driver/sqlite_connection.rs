@@ -1,5 +1,6 @@
 #[allow(clippy::disallowed_types)]
 use sqlx::Connection;
+use sqlx::FromRow;
 
 use crate::{
     dialect::{sql_dialect::SqlDialect, sqlite_dialect::sqlite::SqliteDialect},
@@ -28,6 +29,7 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
                 Value::Bool(b) => query.bind(b),
             }
         }
+
         log::info!("Executing SQL: {}", ctx.sql);
         let result = query
             .execute(self.inner.as_mut())
@@ -67,5 +69,71 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
 
     fn get_dialect(&self) -> &dyn SqlDialect {
         &SqliteDialect
+    }
+
+    async fn fetch_one<T: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<T, CorrosionOrmError> {
+        let mut query = sqlx::query_as::<_, T>(&ctx.sql);
+
+        for value in ctx.values.iter() {
+            query = match value {
+                Value::String(s) => query.bind(s),
+                Value::Int(i) => query.bind(i),
+                Value::Int64(i) => query.bind(i),
+                Value::Bool(b) => query.bind(b),
+            }
+        }
+
+        let result = query
+            .fetch_one(self.inner.as_mut())
+            .await
+            .map_err(DriverError::Sqlx)?;
+        Ok(result)
+    }
+
+    async fn fetch_all<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<Vec<E>, CorrosionOrmError> {
+        let mut query = sqlx::query_as::<_, E>(&ctx.sql);
+
+        for value in ctx.values.iter() {
+            query = match value {
+                Value::String(s) => query.bind(s),
+                Value::Int(i) => query.bind(i),
+                Value::Int64(i) => query.bind(i),
+                Value::Bool(b) => query.bind(b),
+            }
+        }
+
+        let result = query
+            .fetch_all(self.inner.as_mut())
+            .await
+            .map_err(DriverError::Sqlx)?;
+        Ok(result)
+    }
+
+    async fn fetch_optional<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<Option<E>, CorrosionOrmError> {
+        let mut query = sqlx::query_as::<_, E>(&ctx.sql);
+
+        for value in ctx.values.iter() {
+            query = match value {
+                Value::String(s) => query.bind(s),
+                Value::Int(i) => query.bind(i),
+                Value::Int64(i) => query.bind(i),
+                Value::Bool(b) => query.bind(b),
+            }
+        }
+
+        let result = query
+            .fetch_optional(self.inner.as_mut())
+            .await
+            .map_err(DriverError::Sqlx)?;
+        Ok(result)
     }
 }

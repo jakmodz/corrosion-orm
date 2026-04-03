@@ -1,3 +1,5 @@
+use sqlx::FromRow;
+
 use crate::{
     dialect::sql_dialect::SqlDialect,
     driver::{
@@ -65,5 +67,39 @@ impl<P: ConnectionPool> Executor for Transaction<P> {
             .as_ref()
             .expect("Transaction connection closed")
             .get_dialect()
+    }
+
+    async fn fetch_one<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<E, CorrosionOrmError> {
+        match self.conn.as_mut() {
+            Some(conn) => conn.fetch_one(ctx).await,
+            None => Err(CorrosionOrmError::DriverError(
+                DriverError::ConnectionClosed,
+            )),
+        }
+    }
+    async fn fetch_all<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<Vec<E>, CorrosionOrmError> {
+        match self.conn.as_mut() {
+            Some(conn) => conn.fetch_all(ctx).await,
+            None => Err(CorrosionOrmError::DriverError(
+                DriverError::ConnectionClosed,
+            )),
+        }
+    }
+    async fn fetch_optional<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+        &mut self,
+        ctx: &mut QueryContext,
+    ) -> Result<Option<E>, CorrosionOrmError> {
+        match self.conn.as_mut() {
+            Some(conn) => conn.fetch_optional(ctx).await,
+            None => Err(CorrosionOrmError::DriverError(
+                DriverError::ConnectionClosed,
+            )),
+        }
     }
 }
