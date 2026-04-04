@@ -38,7 +38,8 @@ pub(crate) async fn init_sqlite() -> SqliteDriver {
 
     let _ = env_logger::builder()
         .is_test(true)
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::max())
+        .filter_module("sqlx", log::LevelFilter::Off)
         .try_init();
 
     let config = SqliteConfigBuilder::new()
