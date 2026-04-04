@@ -4,21 +4,23 @@ mod tests {
     use corrosion_orm_core::prelude::*;
 
     #[tokio::test]
-    async fn test_get_by_id() {
+    async fn test_get_by_id() -> Result<(), CorrosionOrmError> {
         let driver = init_sqlite().await;
 
         let user = User::example();
         let mut conn = driver.acquire_conn().await.unwrap();
         user.save(&mut conn).await.unwrap();
-        let db_user = User::get_by_id(user.id, &mut conn).await.unwrap();
+        let db_user = User::get_by_id(user.id, &mut conn).await?.unwrap();
         assert_eq!(user.id, db_user.id);
+        Ok(())
     }
     #[tokio::test]
-    async fn test_get_by_id_not_found() {
+    async fn test_get_by_id_not_found() -> Result<(), CorrosionOrmError> {
         let driver = init_sqlite().await;
         let mut conn = driver.acquire_conn().await.unwrap();
-        let result = User::get_by_id(999, &mut conn).await;
-        assert!(result.is_err());
+        let result = User::get_by_id(999, &mut conn).await?;
+        assert!(result.is_none());
+        Ok(())
     }
     #[tokio::test]
     async fn test_get_all() {
@@ -55,25 +57,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_by_id_with_transaction() {
+    async fn test_get_by_id_with_transaction() -> Result<(), CorrosionOrmError> {
         let user = User::example();
         let driver = init_sqlite().await;
 
         let mut tx = driver.transaction().await.unwrap();
         user.save(&mut tx).await.unwrap();
 
-        let retrieved_user = User::get_by_id(user.id, &mut tx).await.unwrap();
+        let retrieved_user = User::get_by_id(user.id, &mut tx).await?.unwrap();
         assert_eq!(retrieved_user.id, user.id);
 
         tx.commit().await.unwrap();
 
         let mut conn = driver.acquire_conn().await.unwrap();
-        let db_user = User::get_by_id(user.id, &mut conn).await.unwrap();
+        let db_user = User::get_by_id(user.id, &mut conn).await?.unwrap();
         assert_eq!(user.id, db_user.id);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_get_all_with_transaction() {
+    async fn test_get_all_with_transaction() -> Result<(), CorrosionOrmError> {
         let driver = init_sqlite().await;
 
         let mut tx = driver.transaction().await.unwrap();
@@ -93,19 +96,21 @@ mod tests {
         let mut conn = driver.acquire_conn().await.unwrap();
         let db_users = User::get_all(&mut conn).await.unwrap();
         assert_eq!(5, db_users.len());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_get_with_transaction_not_found() {
+    async fn test_get_with_transaction_not_found() -> Result<(), CorrosionOrmError> {
         let driver = init_sqlite().await;
         let mut tx = driver.transaction().await.unwrap();
-        let result = User::get_by_id(999, &mut tx).await;
-        assert!(result.is_err());
+        let result = User::get_by_id(999, &mut tx).await?;
+        assert!(result.is_none());
         tx.commit().await.unwrap();
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_get_with_transaction_after_rollback() {
+    async fn test_get_with_transaction_after_rollback() -> Result<(), CorrosionOrmError> {
         let user = User::example();
         let driver = init_sqlite().await;
 
@@ -114,7 +119,8 @@ mod tests {
         tx.rollback().await.unwrap();
 
         let mut conn = driver.acquire_conn().await.unwrap();
-        let result = User::get_by_id(user.id, &mut conn).await;
-        assert!(result.is_err());
+        let result = User::get_by_id(user.id, &mut conn).await?;
+        assert!(result.is_none());
+        Ok(())
     }
 }
