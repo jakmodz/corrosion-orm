@@ -25,6 +25,7 @@ pub mod prelude {
     pub use crate::driver::executor::Executor;
     pub use crate::driver::sql_driver::SqlDriver;
     pub use crate::driver::transaction::Transaction;
+    pub use crate::error::CorrosionOrmError;
     pub use crate::model::repository::Repo;
     pub use crate::query::*;
     pub use crate::query::{

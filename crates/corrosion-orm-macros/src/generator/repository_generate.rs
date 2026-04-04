@@ -36,17 +36,17 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
                 let schema = Self::get_schema();
 
-                let is_new_query = corrosion_orm_core::query::select::Select::from(&schema)
+                let check_query = corrosion_orm_core::query::select::Select::from(&schema)
                     .where_clause(
                         WhereClause::eq(&schema.primary_key.name, self.#pk_ident.clone()),
                 );
 
                 let mut ctx_control = corrosion_orm_core::query::query_type::QueryContext::new();
-                is_new_query.to_sql(&mut ctx_control, db.get_dialect());
-                let is_new = db.execute_query(&mut ctx_control).await?;
+                check_query.to_sql(&mut ctx_control, db.get_dialect());
+                let existing = db.fetch_optional::<Self>(&mut ctx_control).await?;
 
                 let mut ctx = QueryContext::new();
-                if is_new == 0 {
+                if existing.is_none() {
                     let mut insert_query = corrosion_orm_core::query::insert::Insert::from(&schema)
                         .values(self.get_values_from_self());
                     insert_query.to_sql(&mut ctx, db.get_dialect());
