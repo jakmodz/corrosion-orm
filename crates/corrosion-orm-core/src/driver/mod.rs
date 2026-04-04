@@ -1,3 +1,5 @@
+//! Driver module for database connections and operations.
+//! This module provides the core driver implementation for database connections, including connection pooling, transactions, and SQL execution.
 pub mod connection;
 pub mod connection_config;
 pub mod connection_pool;
