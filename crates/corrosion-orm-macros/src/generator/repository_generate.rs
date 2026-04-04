@@ -78,7 +78,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 let results = db.fetch_all::<Self>(&mut ctx).await?;
                 Ok(results)
             }
-            async fn get_by_id(id: Self::PrimaryKey, db: &mut Db) -> Result<Self, corrosion_orm_core::error::CorrosionOrmError> {
+            async fn get_by_id(id: Self::PrimaryKey, db: &mut Db) -> Result<Option<Self>, corrosion_orm_core::error::CorrosionOrmError> {
                 use corrosion_orm_core::query::to_sql::ToSql;
                 use corrosion_orm_core::schema::table::TableSchema;
                 use corrosion_orm_core::query::where_clause::WhereClause;
@@ -90,9 +90,9 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 query.to_sql(&mut ctx, db.get_dialect());
                 let result = db.fetch_optional::<Self>(&mut ctx).await?;
                 if let Some(result) = result {
-                    Ok(result)
+                    Ok(Some(result))
                 } else {
-                    Err(corrosion_orm_core::driver::error::DriverError::NotFound.into())
+                    Ok(None)
                 }
             }
             async fn delete(self, db: &mut Db) -> Result<(), corrosion_orm_core::error::CorrosionOrmError> {
