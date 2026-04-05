@@ -13,6 +13,7 @@ impl SqlDialect for MockSqliteDialect {
 }
 #[derive(Model, Clone, Debug)]
 #[Table(name = "users")]
+#[Index(name = "idx_users_id", fields = ["id"], unique = true)]
 pub struct User {
     #[Column(name = "id")]
     #[PrimaryKey]

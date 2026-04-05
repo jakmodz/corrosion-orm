@@ -11,6 +11,11 @@ pub fn generate_schema_impl(table: &TableData) -> TokenStream {
         fields.push(generate_field(field));
     }
 
+    let mut indexes: Vec<TokenStream> = Vec::new();
+    for index in table.indexes.iter() {
+        indexes.push(generate_index(index));
+    }
+
     let table_name = &table.name;
     let struct_ident = &table.ident;
 
@@ -25,13 +30,14 @@ pub fn generate_schema_impl(table: &TableData) -> TokenStream {
                 corrosion_orm_core::schema::table::TableSchemaModel{
                     name: String::from(#table_name),
                     fields: vec!(#(#fields),*),
-                    indexes: Vec::new(),
+                    indexes: vec!(#(#indexes),*),
                     primary_key: #primary_key
                 }
             }
         }
     }
 }
+
 fn generate_field(field: &Field) -> TokenStream {
     let field_name = &field.name;
     let field_type = &field.ty;
@@ -56,6 +62,21 @@ fn generate_field(field: &Field) -> TokenStream {
         )
     }
 }
+
+fn generate_index(index: &crate::model::IndexDefinition) -> TokenStream {
+    let index_name = &index.name;
+    let index_fields: Vec<String> = index.fields.clone();
+    let is_unique = index.unique;
+
+    quote! {
+        corrosion_orm_core::schema::table::IndexModel {
+            name: String::from(#index_name),
+            fields: vec!(#(String::from(#index_fields)),*),
+            unique: #is_unique,
+        }
+    }
+}
+
 fn generate_primary_key(primary_key: &PrimaryKeyField) -> TokenStream {
     let key_name = &primary_key.name;
     let strategy = match &primary_key.generation_strategy {

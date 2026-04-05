@@ -70,13 +70,17 @@ pub trait SqlDialect: Send + Sync {
         for field in &schema.fields {
             columns.push(self.cast_column(field));
         }
-
-        Ok(format!(
+        let mut ddl = format!(
             "CREATE TABLE {}{} (\n{}\n);\n",
             guard,
             schema.name,
             columns.join(",\n")
-        ))
+        );
+        for index in &schema.indexes {
+            ddl.push_str(&self.generate_create_index_ddl(&schema.name, index));
+        }
+
+        Ok(ddl)
     }
 
     /// Generates `DROP TABLE <name>;`.

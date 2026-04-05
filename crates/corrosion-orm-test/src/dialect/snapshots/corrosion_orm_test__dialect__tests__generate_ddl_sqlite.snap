@@ -6,3 +6,4 @@ CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     name TEXT NULL UNIQUE
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_id ON users (id);

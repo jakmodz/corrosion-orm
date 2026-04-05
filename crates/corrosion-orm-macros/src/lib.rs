@@ -16,53 +16,105 @@ use syn::{DeriveInput, parse_macro_input};
 /// ### Placed at top of struct
 ///
 /// `#[Table]`
-/// possible attributes=> name: String
+/// Possible attributes => name: String
+///
+/// `#[Index]`
+/// Possible attributes => name: String (optional, auto-generated if omitted),
+///                        fields: Vec<String> (required),
+///                        unique: bool (optional, default = false)
 ///
 /// ### Example
 /// ```ignore
 /// #[derive(Model)]
 /// #[Table(name = "users")]
+/// #[Index(name = "idx_email", fields = ["email"], unique = true)]
 /// struct User;
 /// ```
 ///
 /// ### Placed above field of the struct
 ///
 /// `#[Column]`
-///  possible attributes=> name: String,unique: bool,nullable: bool
+///  Possible attributes => name: String,
+///                         unique: bool,
+///                         nullable: bool,
+///                         index: bool (optional, creates single-column index)
 ///
 /// # Example
 /// ```ignore
-/// #[Model]
+/// #[derive(Model)]
 /// struct User {
-///     #[Column(name= "nm",unique = true,nullable = false)]
+///     #[Column(name = "nm", unique = true, nullable = false)]
 ///     name: String
-///}
+/// }
 /// ```
 ///
 /// `#[PrimaryKey]`
-/// possible attributes=> generation_strategy: GenerationStrategy
+/// Possible attributes => generation_strategy: GenerationStrategy
+///
 /// # Example
 /// ```ignore
-/// #[Model]
+/// #[derive(Model)]
 /// struct User {
-///     #[Column(name= "nm",unique = true,nullable = false)]
+///     #[Column(name = "nm", unique = true, nullable = false)]
 ///     #[PrimaryKey(generation_strategy = {GenerationStrategy::AutoIncrement})]
 ///     id: i64
-///}
+/// }
 /// ```
-/// # Examples
+///
+/// # Full Examples
+///
+/// ### Basic model with field-level index
 /// ```ignore
-/// #[Model]
+/// #[derive(Model)]
 /// #[Table(name = "users")]
 /// struct User {
-///     #[Column(name= "id",unique = true,nullable = false)]
+///     #[Column(name = "id")]
 ///     #[PrimaryKey(generation_strategy = GenerationStrategy::AutoIncrement)]
-///     id: i64
-///     #[Column(name= "nm",unique = true,nullable = false)]
-///     name: String
-///}
+///     id: i64,
+///     #[Column(name = "email", unique = true, index)]
+///     email: String,
+///     #[Column(name = "username")]
+///     username: String,
+/// }
 /// ```
-#[proc_macro_derive(Model, attributes(Table, Column, PrimaryKey))]
+///
+/// ### Model with table-level composite index
+/// ```ignore
+/// #[derive(Model)]
+/// #[Table(name = "orders")]
+/// #[Index(name = "idx_user_created", fields = ["user_id", "created_at"], unique = false)]
+/// struct Order {
+///     #[Column(name = "id")]
+///     #[PrimaryKey(generation_strategy = GenerationStrategy::AutoIncrement)]
+///     id: i64,
+///     #[Column(name = "user_id")]
+///     user_id: i64,
+///     #[Column(name = "created_at")]
+///     created_at: String,
+///     #[Column(name = "amount")]
+///     amount: f64,
+/// }
+/// ```
+///
+/// ### Model with multiple indexes
+/// ```ignore
+/// #[derive(Model)]
+/// #[Table(name = "products")]
+/// #[Index(fields = ["category", "price"])]
+/// #[Index(name = "idx_unique_sku", fields = ["sku"], unique = true)]
+/// struct Product {
+///     #[Column(name = "id")]
+///     #[PrimaryKey(generation_strategy = {GenerationStrategy::AutoIncrement})]
+///     id: i64,
+///     #[Column(name = "sku", index)]
+///     sku: String,
+///     #[Column(name = "category")]
+///     category: String,
+///     #[Column(name = "price")]
+///     price: f64,
+/// }
+/// ```
+#[proc_macro_derive(Model, attributes(Table, Column, PrimaryKey, Index))]
 pub fn model_derive(input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as DeriveInput);
     let model = match parse_model(&mut ast) {
