@@ -42,7 +42,8 @@ pub fn parse_model(ast: &mut DeriveInput) -> syn::Result<TableData> {
     let mut field_indexes = Vec::new();
     for field in &fields {
         if field.has_index {
-            let idx_name = IndexDefinition::generate_name(&table_name, &[field.name.clone()]);
+            let idx_name =
+                IndexDefinition::generate_name(&table_name, std::slice::from_ref(&field.name));
             field_indexes.push(IndexDefinition::new(
                 idx_name,
                 vec![field.name.clone()],
