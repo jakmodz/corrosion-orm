@@ -41,8 +41,11 @@ impl<'clause> WhereClause<'clause> {
         Self::new(WhereClauseType::Condition(Condition::is_null(col)))
     }
 
-    pub fn in_(col: &'clause str, vals: Vec<Value>) -> Self {
-        Self::new(WhereClauseType::Condition(Condition::in_(col, vals)))
+    pub fn in_<V: Into<Value>>(col: &'clause str, vals: Vec<V>) -> Self {
+        Self::new(WhereClauseType::Condition(Condition::in_(
+            col,
+            vals.into_iter().map(|v| v.into()).collect(),
+        )))
     }
 
     pub fn and(self, other: WhereClause<'clause>) -> Self {
@@ -174,6 +177,13 @@ impl<'clause> ToSql for Condition<'clause> {
                 ctx.sql.push_str(col);
                 ctx.sql.push_str(" IS NULL");
             }
+            Condition::Between(col, min, max) => {
+                ctx.sql.push_str(col);
+                ctx.sql.push_str(" BETWEEN ");
+                ctx.push_bind_param(min.clone(), dialect);
+                ctx.sql.push_str(" AND ");
+                ctx.push_bind_param(max.clone(), dialect);
+            }
         }
     }
 }
@@ -191,6 +201,7 @@ pub enum Condition<'clause> {
     NotIn(&'clause str, Vec<Value>),
     Like(&'clause str, Value),
     NotLike(&'clause str, Value),
+    Between(&'clause str, Value, Value),
 }
 macro_rules! condition_impl {
     ($name:ident, $variant:ident) => {
@@ -214,7 +225,10 @@ impl<'clause> Condition<'clause> {
     pub fn in_(col: &'clause str, values: Vec<Value>) -> Self {
         Condition::In(col, values)
     }
-    pub fn not_in(col: &'clause str, values: Vec<Value>) -> Self {
-        Condition::NotIn(col, values)
+    pub fn not_in<V: Into<Value>>(col: &'clause str, values: Vec<V>) -> Self {
+        Condition::NotIn(col, values.into_iter().map(|v| v.into()).collect())
+    }
+    pub fn between<V: Into<Value>>(col: &'clause str, min: V, max: V) -> Self {
+        Condition::Between(col, min.into(), max.into())
     }
 }

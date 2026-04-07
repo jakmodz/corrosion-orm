@@ -117,7 +117,14 @@ mod tests {
         insta::assert_snapshot!(sql, @"deleted_at IS NULL");
         assert_eq!(values.len(), 0);
     }
-
+    #[test]
+    fn test_simple_between() {
+        let clause =
+            WhereClauseType::Condition(Condition::Between("age", Value::Int(18), Value::Int(30)));
+        let (sql, values) = render_clause(clause);
+        insta::assert_snapshot!(sql, @"age BETWEEN ? AND ?");
+        assert_eq!(values.len(), 2);
+    }
     #[test]
     fn test_and_two_conditions() {
         let clause = WhereClauseType::And(
