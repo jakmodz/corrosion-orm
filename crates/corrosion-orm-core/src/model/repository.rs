@@ -25,6 +25,8 @@ pub trait Repository<Db: Executor>: Sized + Sync {
     /// Returns `Ok(())` if the entity was deleted, `Ok(None)` if no entity was found, or an error if one occurred.
     /// Note: this method consumes `self`, so it cannot be called on a borrowed value.
     async fn delete(self, db: &mut Db) -> Result<(), CorrosionOrmError>;
-    // TODO: some kind of builder to make it easier to compose queries in this kind
+    /// Finds entities in the repository that match the given criteria.
+    ///
+    /// Returns a [`Finder`] that can be used to execute the query and retrieve the results.
     fn find<'query>() -> Finder<'query, Self, Db>;
 }
