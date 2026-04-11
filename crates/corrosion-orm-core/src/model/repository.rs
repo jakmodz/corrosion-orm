@@ -1,4 +1,4 @@
-use crate::{driver::executor::Executor, error::CorrosionOrmError};
+use crate::{CorrosionOrmError, Executor, model::finder::Finder};
 
 #[trait_variant::make(Repo: Send)]
 pub trait Repository<Db: Executor>: Sized + Sync {
@@ -25,4 +25,6 @@ pub trait Repository<Db: Executor>: Sized + Sync {
     /// Returns `Ok(())` if the entity was deleted, `Ok(None)` if no entity was found, or an error if one occurred.
     /// Note: this method consumes `self`, so it cannot be called on a borrowed value.
     async fn delete(self, db: &mut Db) -> Result<(), CorrosionOrmError>;
+    // TODO: some kind of builder to make it easier to compose queries in this kind
+    fn find<'query>() -> Finder<'query, Self, Db>;
 }

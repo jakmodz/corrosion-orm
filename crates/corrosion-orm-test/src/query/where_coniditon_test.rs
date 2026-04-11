@@ -442,7 +442,7 @@ mod tests {
     }
     #[test]
     fn test_numeric_column_entity() {
-        let clause: WhereClause<'_> = user::COLUMN.id.eq(Value::Int(30));
+        let clause: WhereClause<'_> = user::COLUMN.id.eq(30);
         let (sql, values) = render_clause(clause.clause);
         insta::assert_snapshot!(sql, @"id = ?");
         assert_eq!(values.len(), 1);

@@ -35,6 +35,12 @@ impl From<String> for Value {
     }
 }
 
+impl From<&str> for Value {
+    fn from(v: &str) -> Self {
+        Value::String(v.to_string())
+    }
+}
+
 impl<T> From<Option<T>> for Value
 where
     Value: From<T>,

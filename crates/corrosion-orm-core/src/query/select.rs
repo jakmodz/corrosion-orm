@@ -110,6 +110,24 @@ impl<'col> From<&'col TableSchemaModel> for Select<'col> {
         }
     }
 }
+impl<'col> From<TableSchemaModel> for Select<'col> {
+    fn from(schema: TableSchemaModel) -> Self {
+        let mut columns = Vec::with_capacity(1 + schema.fields.len());
+
+        columns.push(Cow::Owned(schema.primary_key.name));
+
+        for field in schema.fields {
+            columns.push(Cow::Owned(field.name));
+        }
+
+        Self {
+            table: Cow::Owned(schema.name),
+            columns,
+            where_clause: None,
+            limit: None,
+        }
+    }
+}
 
 mod tests {
 
