@@ -111,9 +111,8 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 Ok(())
             }
             fn find<'query>() -> corrosion_orm_core::model::Finder<'query, Self, Db> {
-                use corrosion_orm_core::query::to_sql::ToSql;
-                use corrosion_orm_core::schema::table::TableSchema;
                 use corrosion_orm_core::query::select::Select;
+                use corrosion_orm_core::schema::table::TableSchema;
                 let schema = Self::get_schema();
                 let select_query = Select::from(schema);
                 corrosion_orm_core::model::Finder::new(select_query)
