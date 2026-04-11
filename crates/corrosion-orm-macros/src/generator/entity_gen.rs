@@ -45,13 +45,13 @@ fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
     match ty {
         syn::Type::Path(type_path) => {
             if let Some(segment) = type_path.path.segments.last() {
-                if segment.ident == "Option" {
-                    if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                        if let syn::GenericArgument::Type(inner_ty) = args.args.first().unwrap() {
-                            return get_sql_type_from_rust_type(inner_ty);
-                        }
-                    }
+                if segment.ident == "Option"
+                    && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
+                    && let syn::GenericArgument::Type(inner_ty) = args.args.first().unwrap()
+                {
+                    return get_sql_type_from_rust_type(inner_ty);
                 }
+
                 let ident_str = segment.ident.to_string();
                 match ident_str.as_str() {
                     "String" => String::default().to_sql_type(),
