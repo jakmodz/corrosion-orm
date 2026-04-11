@@ -20,7 +20,7 @@ use syn::{DeriveInput, parse_macro_input};
 ///
 /// `#[Index]`
 /// Possible attributes => name: String (optional, auto-generated if omitted),
-///                        fields: Vec<String> (required),
+///                        fields: `Vec<String>` (required),
 ///                        unique: bool (optional, default = false)
 ///
 /// ### Example
