@@ -1,7 +1,12 @@
 use std::borrow::Cow;
 
 use crate::{
-    dialect::sql_dialect::SqlDialect, query::to_sql::ToSql, schema::table::TableSchemaModel,
+    dialect::sql_dialect::SqlDialect,
+    query::{
+        order_by::{OrderBy, OrderClause},
+        to_sql::ToSql,
+    },
+    schema::table::TableSchemaModel,
     types::ColumnTrait,
 };
 
@@ -41,6 +46,7 @@ pub struct Select<'query, C: ColumnTrait> {
     columns: Vec<Cow<'query, str>>,
     where_clause: Option<WhereClause<C>>,
     limit: Option<usize>,
+    order_by: Option<OrderClause<C>>,
 }
 
 impl<'col, C: ColumnTrait> Select<'col, C> {
@@ -49,6 +55,7 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
             table: table.into(),
             columns: Vec::new(),
             where_clause: None,
+            order_by: None,
             limit: None,
         }
     }
@@ -68,6 +75,17 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
         self.where_clause = Some(where_clause);
         self
     }
+    pub fn add_order_by(mut self, order_by: OrderBy<C>) -> Self {
+        if let Some(order_clause) = &mut self.order_by {
+            order_clause.columns.push(order_by);
+        } else {
+            self.order_by = Some(OrderClause {
+                columns: vec![order_by],
+            });
+        }
+        self
+    }
+
     #[cfg(feature = "test-utils")]
     pub fn get_table(&self) -> &str {
         &self.table
@@ -100,6 +118,10 @@ impl<C: ColumnTrait> ToSql for Select<'_, C> {
             ctx.sql.push_str(" WHERE ");
             where_clause.to_sql(ctx, _dialect);
         }
+        if let Some(order_by) = &self.order_by {
+            ctx.sql.push_str(" ORDER BY ");
+            order_by.to_sql(ctx, _dialect);
+        }
         if let Some(limit) = self.limit {
             ctx.sql.push_str(&format!(" LIMIT {}", limit));
         }
@@ -115,6 +137,7 @@ impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
                 .map(Cow::Borrowed)
                 .collect(),
             where_clause: None,
+            order_by: None,
             limit: None,
         }
     }
@@ -133,6 +156,7 @@ impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
             table: Cow::Owned(schema.name),
             columns,
             where_clause: None,
+            order_by: None,
             limit: None,
         }
     }

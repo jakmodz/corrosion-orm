@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use crate::{
     CorrosionOrmError, Executor,
     prelude::QueryContext,
-    query::{Select, ToSql, WhereClause},
+    query::{Select, ToSql, WhereClause, order_by::OrderBy},
     types::ColumnTrait,
 };
 
@@ -46,6 +46,15 @@ where
     pub fn filter(self, filter: WhereClause<C>) -> Self {
         Self {
             query: self.query.where_clause(filter),
+            _entity: PhantomData,
+            _executor: PhantomData,
+        }
+    }
+    /// Adds an order to order clause in the query.
+    ///
+    pub fn add_order_by(self, order_by: OrderBy<C>) -> Self {
+        Self {
+            query: self.query.add_order_by(order_by),
             _entity: PhantomData,
             _executor: PhantomData,
         }

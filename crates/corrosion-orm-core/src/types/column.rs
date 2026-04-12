@@ -2,30 +2,47 @@
 
 use crate::{
     query::{
+        order_by::{OrderBy, OrderDirection},
         query_type::Value,
         where_clause::{Condition, WhereClause, WhereClauseType},
     },
     types::ColumnTrait,
 };
+macro_rules! create_boller_plate {
+    ($name:ident) => {
+        impl<C: ColumnTrait> $name<C> {
+            pub fn asc(&self) -> OrderBy<C> {
+                OrderBy::new(self.column.clone(), OrderDirection::Asc)
+            }
+            pub fn desc(&self) -> OrderBy<C> {
+                OrderBy::new(self.column.clone(), OrderDirection::Desc)
+            }
+            /// Creates a `WhereClause` for equality comparison with a value.
+            pub fn eq<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+                WhereClause::eq(self.column, val)
+            }
+            /// Creates a `WhereClause` for inequality comparison with a value.
+            pub fn ne<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+                WhereClause::ne(self.column, val)
+            }
+            /// Creates a `WhereClause` for `IS NULL` comparison.
+            pub fn is_null(self) -> WhereClause<C> {
+                WhereClause::is_null(self.column)
+            }
+        }
+    };
+}
 
 /// A string column wrapper with methods for string-specific operations.
 pub struct StringColumn<C: ColumnTrait> {
     pub column: C,
 }
-
+create_boller_plate!(StringColumn);
 impl<C: ColumnTrait> StringColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
     }
-    /// Creates a `WhereClause` for equality comparison with a value.
-    pub fn eq<V: Into<Value>>(self, val: V) -> WhereClause<C> {
-        WhereClause::eq(self.column, val)
-    }
 
-    /// Creates a `WhereClause` for inequality comparison with a value.
-    pub fn ne<V: Into<Value>>(self, val: V) -> WhereClause<C> {
-        WhereClause::ne(self.column, val)
-    }
     /// Creates a `WhereClause` for `LIKE` comparison with a value.
     pub fn like<V: Into<Value>>(self, val: V) -> WhereClause<C> {
         WhereClause::new(WhereClauseType::Condition(Condition::like(
@@ -78,28 +95,16 @@ impl<C: ColumnTrait> StringColumn<C> {
         let values: Vec<Value> = vals.into_iter().map(|v| v.into()).collect();
         WhereClause::in_(self.column, values)
     }
-    /// Creates a `WhereClause` for `IS NULL` comparison.
-    pub fn is_null(self) -> WhereClause<C> {
-        WhereClause::is_null(self.column)
-    }
 }
 
 /// A numeric column wrapper with methods for numeric-specific operations.
 pub struct NumericColumn<C: ColumnTrait> {
     pub column: C,
 }
-
+create_boller_plate!(NumericColumn);
 impl<C: ColumnTrait> NumericColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
-    }
-    /// Creates a `WhereClause` for equality comparison with a value.
-    pub fn eq<V: Into<Value>>(self, val: V) -> WhereClause<C> {
-        WhereClause::eq(self.column, val)
-    }
-    /// Creates a `WhereClause` for inequality comparison with a value.
-    pub fn ne<V: Into<Value>>(self, val: V) -> WhereClause<C> {
-        WhereClause::ne(self.column, val)
     }
     /// Creates a `WhereClause` for greater-than comparison with a value.
     pub fn gt<V: Into<Value>>(self, val: V) -> WhereClause<C> {
@@ -130,28 +135,16 @@ impl<C: ColumnTrait> NumericColumn<C> {
         let values: Vec<Value> = vals.into_iter().map(|v| v.into()).collect();
         WhereClause::in_(self.column, values)
     }
-
-    pub fn is_null(self) -> WhereClause<C> {
-        WhereClause::is_null(self.column)
-    }
 }
 
 /// A date/timestamp column wrapper with methods for date-specific operations.
 pub struct DateLikeColumn<C: ColumnTrait> {
     column: C,
 }
-
+create_boller_plate!(DateLikeColumn);
 impl<C: ColumnTrait> DateLikeColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
-    }
-
-    pub fn eq<V: Into<Value>>(self, val: V) -> WhereClause<C> {
-        WhereClause::eq(self.column, val)
-    }
-
-    pub fn ne<V: Into<Value>>(self, val: V) -> WhereClause<C> {
-        WhereClause::ne(self.column, val)
     }
 
     pub fn gt<V: Into<Value>>(self, val: V) -> WhereClause<C> {
@@ -177,31 +170,15 @@ impl<C: ColumnTrait> DateLikeColumn<C> {
             max,
         )))
     }
-
-    pub fn is_null(self) -> WhereClause<C> {
-        WhereClause::is_null(self.column)
-    }
 }
 
 /// A boolean column wrapper with methods for boolean-specific operations.
 pub struct BooleanColumn<C: ColumnTrait> {
     column: C,
 }
-
+create_boller_plate!(BooleanColumn);
 impl<C: ColumnTrait> BooleanColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
-    }
-
-    pub fn eq<V: Into<Value>>(self, val: V) -> WhereClause<C> {
-        WhereClause::eq(self.column, val)
-    }
-
-    pub fn ne<V: Into<Value>>(self, val: V) -> WhereClause<C> {
-        WhereClause::ne(self.column, val)
-    }
-
-    pub fn is_null(self) -> WhereClause<C> {
-        WhereClause::is_null(self.column)
     }
 }

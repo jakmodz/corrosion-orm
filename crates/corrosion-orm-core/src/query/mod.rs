@@ -55,6 +55,7 @@
 
 pub mod delete;
 pub mod insert;
+pub mod order_by;
 pub mod query_type;
 pub mod select;
 pub mod to_sql;

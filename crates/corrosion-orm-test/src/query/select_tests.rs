@@ -2,6 +2,7 @@
 mod tests {
     use crate::User;
     use corrosion_orm_core::dialect::sqlite_dialect::sqlite::SqliteDialect;
+    use corrosion_orm_core::query::order_by::{OrderBy, OrderDirection};
     use corrosion_orm_core::query::query_type::{QueryContext, Value};
     use corrosion_orm_core::query::select::Select;
     use corrosion_orm_core::query::to_sql::ToSql;
@@ -191,5 +192,23 @@ mod tests {
             .limit(20);
         let sql = render_select(select);
         insta::assert_snapshot!(sql, @"SELECT name, role FROM users WHERE (role = ? OR role = ?) AND experience > ? LIMIT 20");
+    }
+    #[test]
+    fn test_select_with_order_by_asc() {
+        let select = Select::new("users")
+            .add_column("name")
+            .add_column("role")
+            .add_order_by(OrderBy::new(Col("name"), OrderDirection::Asc));
+        let sql = render_select(select);
+        insta::assert_snapshot!(sql, @"SELECT name, role FROM users ORDER BY name ASC");
+    }
+    #[test]
+    fn test_select_with_order_by_desc() {
+        let select = Select::new("users")
+            .add_column("name")
+            .add_column("role")
+            .add_order_by(OrderBy::new(Col("name"), OrderDirection::Desc));
+        let sql = render_select(select);
+        insta::assert_snapshot!(sql, @"SELECT name, role FROM users ORDER BY name DESC");
     }
 }

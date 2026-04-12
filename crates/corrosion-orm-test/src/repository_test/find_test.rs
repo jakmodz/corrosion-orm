@@ -4,7 +4,7 @@ mod tests {
     use corrosion_orm_core::prelude::*;
     const USER_COUNT: usize = 5;
     async fn init_users(conn: &mut impl Executor, n: usize) -> Result<(), CorrosionOrmError> {
-        for i in 0..n {
+        for i in 1..n + 1 {
             let user = User {
                 id: i as i32,
                 name: format!("user{}", i),
@@ -88,6 +88,30 @@ mod tests {
         init_users(&mut conn, USER_COUNT).await?;
         let users = User::find().limit(2).all(&mut conn).await?;
         assert_eq!(users.len(), 2);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_find_order_by_asc() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        init_users(&mut conn, USER_COUNT).await?;
+        let users = User::find()
+            .add_order_by(user::COLUMN.id.asc())
+            .all(&mut conn)
+            .await?;
+        assert_eq!(users.first().unwrap().id, 1);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_find_order_by_desc() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        init_users(&mut conn, USER_COUNT).await?;
+        let users = User::find()
+            .add_order_by(user::COLUMN.id.desc())
+            .all(&mut conn)
+            .await?;
+        assert_eq!(users.first().unwrap().id, USER_COUNT as i32);
         Ok(())
     }
 }
