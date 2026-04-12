@@ -58,7 +58,7 @@ impl<C: ColumnTrait> WhereClause<C> {
         ))
     }
 
-    pub fn not(self) -> Self {
+    pub fn not_(self) -> Self {
         Self::new(WhereClauseType::Not(Box::new(self.clause)))
     }
 }

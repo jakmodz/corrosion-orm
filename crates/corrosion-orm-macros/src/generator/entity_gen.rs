@@ -88,7 +88,7 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
         &primary_key_field.name.to_lowercase(),
         proc_macro2::Span::call_site(),
     );
-    let column_name = &primary_key_field.name; // <- "id"
+    let column_name = &primary_key_field.name;
 
     let sql_type = get_sql_type_from_rust_type(&primary_key_field.ty);
     let wrapper_type = sql_type_to_wrapper(&sql_type);

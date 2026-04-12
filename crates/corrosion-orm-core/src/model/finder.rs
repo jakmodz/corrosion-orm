@@ -13,7 +13,6 @@ use crate::{
 ///
 /// This struct is now generic over C: ColumnTrait to ensure model-level type safety.
 pub struct Finder<'query, T, E: Executor, C: ColumnTrait> {
-    // Select is now generic over C, so Finder must be too
     pub(crate) query: Select<'query, C>,
     _entity: PhantomData<T>,
     _executor: PhantomData<E>,

@@ -37,7 +37,6 @@ use std::borrow::Cow;
 ///
 /// let update = Update::<UserColumn>::new().table(Cow::Borrowed("users"));
 /// ```
-
 pub struct Update<'query, C: ColumnTrait> {
     table: Cow<'query, str>,
     columns: Vec<Cow<'query, str>>,

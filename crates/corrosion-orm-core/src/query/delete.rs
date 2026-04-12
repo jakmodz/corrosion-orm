@@ -31,7 +31,6 @@ use std::borrow::Cow;
 ///
 /// let delete = Delete::<UserColumn>::new("users");
 /// ```
-
 pub struct Delete<'query, C: ColumnTrait> {
     table: Cow<'query, str>,
     where_clause: Option<WhereClause<C>>,
