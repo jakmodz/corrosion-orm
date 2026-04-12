@@ -8,7 +8,7 @@ use crate::{
     },
     types::ColumnTrait,
 };
-macro_rules! create_boller_plate {
+macro_rules! create_boiler_plate {
     ($name:ident) => {
         impl<C: ColumnTrait> $name<C> {
             pub fn asc(&self) -> OrderBy<C> {
@@ -37,7 +37,7 @@ macro_rules! create_boller_plate {
 pub struct StringColumn<C: ColumnTrait> {
     pub column: C,
 }
-create_boller_plate!(StringColumn);
+create_boiler_plate!(StringColumn);
 impl<C: ColumnTrait> StringColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
@@ -101,7 +101,7 @@ impl<C: ColumnTrait> StringColumn<C> {
 pub struct NumericColumn<C: ColumnTrait> {
     pub column: C,
 }
-create_boller_plate!(NumericColumn);
+create_boiler_plate!(NumericColumn);
 impl<C: ColumnTrait> NumericColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
@@ -141,7 +141,7 @@ impl<C: ColumnTrait> NumericColumn<C> {
 pub struct DateLikeColumn<C: ColumnTrait> {
     column: C,
 }
-create_boller_plate!(DateLikeColumn);
+create_boiler_plate!(DateLikeColumn);
 impl<C: ColumnTrait> DateLikeColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
@@ -176,7 +176,7 @@ impl<C: ColumnTrait> DateLikeColumn<C> {
 pub struct BooleanColumn<C: ColumnTrait> {
     column: C,
 }
-create_boller_plate!(BooleanColumn);
+create_boiler_plate!(BooleanColumn);
 impl<C: ColumnTrait> BooleanColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
