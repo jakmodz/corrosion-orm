@@ -45,8 +45,9 @@ pub struct Select<'query, C: ColumnTrait> {
     table: Cow<'query, str>,
     columns: Vec<Cow<'query, str>>,
     where_clause: Option<WhereClause<C>>,
-    limit: Option<usize>,
     order_by: Option<OrderClause<C>>,
+    limit: Option<usize>,
+    offset: Option<usize>,
 }
 
 impl<'col, C: ColumnTrait> Select<'col, C> {
@@ -57,6 +58,7 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
             where_clause: None,
             order_by: None,
             limit: None,
+            offset: None,
         }
     }
     pub fn add_column<Column: Into<Cow<'col, str>>>(mut self, column: Column) -> Self {
@@ -69,6 +71,10 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
     }
     pub fn limit(mut self, limit: usize) -> Self {
         self.limit = Some(limit);
+        self
+    }
+    pub fn offset(mut self, offset: usize) -> Self {
+        self.offset = Some(offset);
         self
     }
     pub fn where_clause(mut self, where_clause: WhereClause<C>) -> Self {
@@ -125,6 +131,9 @@ impl<C: ColumnTrait> ToSql for Select<'_, C> {
         if let Some(limit) = self.limit {
             ctx.sql.push_str(&format!(" LIMIT {}", limit));
         }
+        if let Some(offset) = self.offset {
+            ctx.sql.push_str(&format!(" OFFSET {}", offset));
+        }
     }
 }
 impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
@@ -139,6 +148,7 @@ impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
             where_clause: None,
             order_by: None,
             limit: None,
+            offset: None,
         }
     }
 }
@@ -158,6 +168,7 @@ impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
             where_clause: None,
             order_by: None,
             limit: None,
+            offset: None,
         }
     }
 }

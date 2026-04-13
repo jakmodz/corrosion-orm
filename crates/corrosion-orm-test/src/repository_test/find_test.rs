@@ -114,4 +114,38 @@ mod tests {
         assert_eq!(users.first().unwrap().id, USER_COUNT as i32);
         Ok(())
     }
+    #[tokio::test]
+    async fn test_find_pagination() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        init_users(&mut conn, USER_COUNT).await?;
+        let mut paginator = User::find().add_order_by(user::COLUMN.id.asc()).paginate(2);
+        let page1 = paginator.fetch_page(&mut conn, 0).await?;
+        assert_eq!(page1[0].id, 1);
+        assert_eq!(page1[1].id, 2);
+        let page2 = paginator.fetch_page(&mut conn, 1).await?;
+        assert_eq!(page2[0].id, 3);
+        assert_eq!(page2[1].id, 4);
+        let page3 = paginator.fetch_page(&mut conn, 2).await?;
+        assert_eq!(page3.len(), 1);
+        assert_eq!(page3[0].id, 5);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_find_pagination_next() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        init_users(&mut conn, USER_COUNT).await?;
+        let mut paginator = User::find().add_order_by(user::COLUMN.id.asc()).paginate(2);
+        for i in 0..3 {
+            if let Some(page) = paginator.fetch_next(&mut conn).await? {
+                assert_eq!(page[0].id, (i * 2 + 1) as i32);
+                if page.len() > 1 {
+                    assert_eq!(page[1].id, (i * 2 + 2) as i32);
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
