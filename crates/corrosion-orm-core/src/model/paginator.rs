@@ -1,3 +1,86 @@
+//! Offset-based pagination for database queries.
+//!
+//! This module provides the [`Paginator`] struct, which implements traditional
+//! offset-based pagination using page numbers and SQL `OFFSET` clauses. This is the
+//! classic pagination strategy familiar to most web developers.
+//!
+//! # Understanding Offset-Based Pagination
+//!
+//! Offset-based pagination works by:
+//! 1. Taking a `page` number (0-indexed)
+//! 2. Calculating offset = `page × page_size`
+//! 3. Using `OFFSET offset LIMIT page_size` in the SQL query
+//! 4. Returning the results for that page
+//!
+//! # When to Use Offset-Based Pagination
+//!
+//! Offset-based pagination with [`Paginator`] is best suited for:
+//! - **Small to medium datasets** (< 100,000 rows)
+//! - **Admin panels and dashboards** with manageable record counts
+//! - **Traditional user interfaces** showing page numbers (1, 2, 3, ...)
+//! - **Allowing arbitrary page access** (jump to page 5 directly)
+//! - **Relatively static data** that doesn't change frequently
+//! - **Simple implementations** where ease-of-use is valued
+//!
+//! # When NOT to Use Offset-Based Pagination
+//!
+//! Offset-based pagination is **not ideal** for:
+//! - **Large datasets** (millions of rows) - Later pages become very slow
+//! - **High-performance APIs** - OFFSET performance degrades with page depth
+//! - **Real-time data** with frequent inserts/deletes - Can cause duplicate/missing rows
+//! - **Infinite scroll patterns** - Better served by cursor pagination
+//! - **Deep pagination** (page 1000+) - Extremely slow as database skips many rows
+//!
+//! In these cases, consider using [`crate::model::CursorPaginator`] instead.
+//!
+//! # Performance Characteristics
+//!
+//! - **Early pages** (0-10): Fast, ~O(n) where n = page_size
+//! - **Middle pages** (100-1000): Noticeably slower, ~O(offset + page_size)
+//! - **Late pages** (10000+): Very slow, database must scan/skip many rows
+//!
+//! This is because the database must process every row up to the offset point,
+//! even though most are discarded.
+//!
+//! # Example: Basic Usage
+//!
+//! ```ignore
+//! use corrosion_orm_core::model::Paginator;
+//!
+//! let mut paginator = Paginator::new(
+//!     User::find().order_by(user::COLUMN.CreatedAt.desc()),
+//!     20 // 20 items per page
+//! );
+//!
+//! // Jump to page 5
+//! let page_5 = paginator.fetch_page(&mut db, 5).await?;
+//! for user in page_5 {
+//!     println!("{}: {}", user.id, user.email);
+//! }
+//! ```
+//!
+//! # Example: Sequential Navigation
+//!
+//! ```ignore
+//! use corrosion_orm_core::model::Paginator;
+//!
+//! let mut paginator = Paginator::new(
+//!     Post::find().order_by(post::COLUMN.CreatedAt.desc()),
+//!     50
+//! );
+//!
+//! // Iterate through pages sequentially
+//! while let Some(posts) = paginator.fetch_next(&mut db).await? {
+//!     for post in posts {
+//!         println!("Post: {}", post.title);
+//!     }
+//! }
+//! ```
+//!
+//! # See Also
+//!
+//! - [`crate::model::CursorPaginator`] - Cursor-based pagination for large datasets,
+//!   real-time data, and consistent O(1) performance
 use crate::{CorrosionOrmError, Executor, model::Finder, types::ColumnTrait};
 
 pub struct Paginator<'query, T, E: Executor, C: ColumnTrait> {

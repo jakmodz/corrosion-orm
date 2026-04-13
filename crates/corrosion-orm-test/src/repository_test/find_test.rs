@@ -145,6 +145,69 @@ mod tests {
                 }
             }
         }
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_find_cursor_pagination() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        init_users(&mut conn, USER_COUNT).await?;
+
+        let mut cursor = User::find()
+            .add_order_by(user::COLUMN.id.asc())
+            .cursor_paginate(2);
+
+        let page1 = cursor
+            .fetch_next(
+                &mut conn,
+                |u| Value::Int(u.id),
+                |u| Value::Int(u.id),
+                user::Column::id,
+                user::Column::id,
+            )
+            .await?
+            .unwrap();
+        assert_eq!(page1.len(), 2);
+        assert_eq!(page1[0].id, 1);
+        assert_eq!(page1[1].id, 2);
+
+        let page2 = cursor
+            .fetch_next(
+                &mut conn,
+                |u| Value::Int(u.id),
+                |u| Value::Int(u.id),
+                user::Column::id,
+                user::Column::id,
+            )
+            .await?
+            .unwrap();
+        assert_eq!(page2.len(), 2);
+        assert_eq!(page2[0].id, 3);
+        assert_eq!(page2[1].id, 4);
+
+        let page3 = cursor
+            .fetch_next(
+                &mut conn,
+                |u| Value::Int(u.id),
+                |u| Value::Int(u.id),
+                user::Column::id,
+                user::Column::id,
+            )
+            .await?
+            .unwrap();
+        assert_eq!(page3.len(), 1);
+        assert_eq!(page3[0].id, 5);
+
+        let empty = cursor
+            .fetch_next(
+                &mut conn,
+                |u| Value::Int(u.id),
+                |u| Value::Int(u.id),
+                user::Column::id,
+                user::Column::id,
+            )
+            .await?;
+        assert!(empty.is_none());
 
         Ok(())
     }

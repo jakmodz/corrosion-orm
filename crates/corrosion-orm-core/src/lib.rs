@@ -27,6 +27,7 @@ pub mod prelude {
     pub use crate::driver::transaction::Transaction;
     pub use crate::error::CorrosionOrmError;
     pub use crate::model::repository::Repo;
+    pub use crate::model::{CursorPaginator, Paginator};
     pub use crate::query::*;
     pub use crate::query::{
         Delete, Insert, Select, Update,

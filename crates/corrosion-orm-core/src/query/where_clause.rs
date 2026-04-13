@@ -61,6 +61,21 @@ impl<C: ColumnTrait> WhereClause<C> {
     pub fn not_(self) -> Self {
         Self::new(WhereClauseType::Not(Box::new(self.clause)))
     }
+
+    pub fn seek_after(
+        sort_col: C,
+        last_val: impl Into<Value>,
+        unique_col: C,
+        last_unique_val: impl Into<Value>,
+    ) -> Self {
+        let last_val = last_val.into();
+        let last_unique_val = last_unique_val.into();
+
+        let greater = Self::gt(sort_col, last_val.clone());
+        let tie_breaker = Self::eq(sort_col, last_val).and(Self::gt(unique_col, last_unique_val));
+
+        greater.or(tie_breaker)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

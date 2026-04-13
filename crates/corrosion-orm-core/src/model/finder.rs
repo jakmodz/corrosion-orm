@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use crate::{
     CorrosionOrmError, Executor,
-    model::paginator::Paginator,
+    model::{cursor_paginator::CursorPaginator, paginator::Paginator},
     prelude::QueryContext,
     query::{Select, ToSql, WhereClause, order_by::OrderBy},
     types::ColumnTrait,
@@ -62,7 +62,6 @@ where
         }
     }
     /// Adds an order to order clause in the query.
-    ///
     pub fn add_order_by(self, order_by: OrderBy<C>) -> Self {
         Self {
             query: self.query.add_order_by(order_by),
@@ -70,6 +69,7 @@ where
             _executor: PhantomData,
         }
     }
+    /// Sets the offset for the query.
     pub fn offset(self, offset: usize) -> Self {
         Self {
             query: self.query.offset(offset),
@@ -80,6 +80,13 @@ where
     /// Returns a paginator for this finder with the given page size.
     pub fn paginate(self, page_size: usize) -> Paginator<'query, T, E, C> {
         Paginator::new(self, page_size)
+    }
+    /// Returns a cursor paginator for this finder with the given page size.
+    pub fn cursor_paginate(self, page_size: usize) -> CursorPaginator<'query, T, E, C>
+    where
+        T: Clone,
+    {
+        CursorPaginator::new(self, page_size)
     }
     /// Fetches a single row from the query.
     pub async fn one(self, executor: &mut E) -> Result<T, CorrosionOrmError> {
