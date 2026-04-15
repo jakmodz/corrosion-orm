@@ -8,6 +8,18 @@ use crate::{
     error::CorrosionOrmError,
     query::query_type::{QueryContext, Value},
 };
+macro_rules! bind_to_query {
+    ($query: expr, $value: expr) => {
+        match $value {
+            Value::String(s) => $query.bind(s),
+            Value::Int(i) => $query.bind(i),
+            Value::Int64(i) => $query.bind(i),
+            Value::Bool(b) => $query.bind(b),
+            Value::Date(d) => $query.bind(d),
+            Value::DateTime(d) => $query.bind(d),
+        }
+    };
+}
 pub struct CorrosionSqliteConnection {
     pub(crate) inner: sqlx::pool::PoolConnection<sqlx::Sqlite>,
 }
@@ -22,14 +34,7 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
         let mut query = sqlx::query(&ctx.sql);
 
         for value in ctx.values.iter() {
-            query = match value {
-                Value::String(s) => query.bind(s),
-                Value::Int(i) => query.bind(i),
-                Value::Int64(i) => query.bind(i),
-                Value::Bool(b) => query.bind(b),
-                Value::Date(d) => query.bind(d.to_string()),
-                Value::DateTime(d) => query.bind(d.to_string()),
-            }
+            query = bind_to_query!(query, value)
         }
 
         let result = query
@@ -79,14 +84,7 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
         let mut query = sqlx::query_as::<_, T>(&ctx.sql);
 
         for value in ctx.values.iter() {
-            query = match value {
-                Value::String(s) => query.bind(s),
-                Value::Int(i) => query.bind(i),
-                Value::Int64(i) => query.bind(i),
-                Value::Bool(b) => query.bind(b),
-                Value::Date(d) => query.bind(d.to_string()),
-                Value::DateTime(d) => query.bind(d.to_string()),
-            }
+            query = bind_to_query!(query, value)
         }
 
         let result = query
@@ -103,14 +101,7 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
         let mut query = sqlx::query_as::<_, E>(&ctx.sql);
 
         for value in ctx.values.iter() {
-            query = match value {
-                Value::String(s) => query.bind(s),
-                Value::Int(i) => query.bind(i),
-                Value::Int64(i) => query.bind(i),
-                Value::Bool(b) => query.bind(b),
-                Value::Date(d) => query.bind(d.to_string()),
-                Value::DateTime(d) => query.bind(d.to_string()),
-            }
+            query = bind_to_query!(query, value)
         }
 
         let result = query
@@ -127,14 +118,7 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
         let mut query = sqlx::query_as::<_, E>(&ctx.sql);
 
         for value in ctx.values.iter() {
-            query = match value {
-                Value::String(s) => query.bind(s),
-                Value::Int(i) => query.bind(i),
-                Value::Int64(i) => query.bind(i),
-                Value::Bool(b) => query.bind(b),
-                Value::Date(d) => query.bind(d.to_string()),
-                Value::DateTime(d) => query.bind(d.to_string()),
-            }
+            query = bind_to_query!(query, value)
         }
 
         let result = query
