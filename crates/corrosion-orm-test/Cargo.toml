@@ -8,5 +8,6 @@ corrosion-orm-macros = {path="../corrosion-orm-macros"}
 insta = { workspace = true }
 tokio = { workspace = true }
 sqlx = {version = "0.8.6", features = ["runtime-tokio","sqlite"]}
+chrono = { workspace = true }
 env_logger = "0.11"
 log = { workspace = true }

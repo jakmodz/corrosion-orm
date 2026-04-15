@@ -2,6 +2,7 @@
 mod tests {
     use crate::{User, init_sqlite, user};
     use corrosion_orm_core::prelude::*;
+    use corrosion_orm_macros::Model;
     const USER_COUNT: usize = 5;
     async fn init_users(conn: &mut impl Executor, n: usize) -> Result<(), CorrosionOrmError> {
         for i in 1..n + 1 {
@@ -209,6 +210,63 @@ mod tests {
             .await?;
         assert!(empty.is_none());
 
+        Ok(())
+    }
+    #[derive(Model)]
+    struct Post {
+        #[PrimaryKey]
+        id: i32,
+        date: chrono::NaiveDate,
+        date_time: chrono::NaiveDateTime,
+    }
+    const D: chrono::NaiveDate = chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
+    const T: chrono::NaiveTime = chrono::NaiveTime::from_hms_milli_opt(12, 34, 56, 789).unwrap();
+
+    #[tokio::test]
+    async fn test_find_date() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        let mut ctx = QueryContext::from_model(Post::get_schema(), conn.get_dialect());
+
+        conn.execute_query(&mut ctx).await?;
+
+        let post = Post {
+            id: 1,
+            date: D,
+            date_time: chrono::NaiveDateTime::new(D, T),
+        };
+        post.save(&mut conn).await?;
+        let posts = Post::find()
+            .filter(post::COLUMN.date.eq(D))
+            .all(&mut conn)
+            .await?;
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].id, 1);
+        assert_eq!(posts[0].date, D);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_find_datetime() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        let mut ctx = QueryContext::from_model(Post::get_schema(), conn.get_dialect());
+
+        conn.execute_query(&mut ctx).await?;
+        let date_time = chrono::NaiveDateTime::new(D, T);
+        let post = Post {
+            id: 1,
+            date: D,
+            date_time: chrono::NaiveDateTime::new(D, T),
+        };
+        post.save(&mut conn).await?;
+        let posts = Post::find()
+            .filter(post::COLUMN.date_time.eq(date_time))
+            .all(&mut conn)
+            .await?;
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].id, 1);
+        assert_eq!(posts[0].date_time, date_time);
         Ok(())
     }
 }

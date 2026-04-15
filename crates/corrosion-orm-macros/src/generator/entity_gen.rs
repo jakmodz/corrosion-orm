@@ -55,6 +55,8 @@ fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
                 let ident_str = segment.ident.to_string();
                 match ident_str.as_str() {
                     "String" => String::default().to_sql_type(),
+                    "NaiveDate" => SqlType::Date,
+                    "NaiveDateTime" => SqlType::Timestamp,
                     "bool" => bool::default().to_sql_type(),
                     "i32" => i32::default().to_sql_type(),
                     "i64" => i64::default().to_sql_type(),
