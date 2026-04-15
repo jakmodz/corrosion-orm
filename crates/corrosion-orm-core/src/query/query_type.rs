@@ -8,6 +8,8 @@ pub enum Value {
     Int(i32),
     Int64(i64),
     Bool(bool),
+    Date(chrono::NaiveDate),
+    DateTime(chrono::NaiveDateTime),
 }
 
 macro_rules! impl_from_value {
@@ -40,7 +42,16 @@ impl From<&str> for Value {
         Value::String(v.to_string())
     }
 }
-
+impl From<chrono::NaiveDate> for Value {
+    fn from(v: chrono::NaiveDate) -> Self {
+        Value::Date(v)
+    }
+}
+impl From<chrono::NaiveDateTime> for Value {
+    fn from(v: chrono::NaiveDateTime) -> Self {
+        Value::DateTime(v)
+    }
+}
 impl<T> From<Option<T>> for Value
 where
     Value: From<T>,
@@ -81,6 +92,8 @@ impl QueryContext {
                     Value::Int(i) => i.to_string(),
                     Value::Int64(i) => i.to_string(),
                     Value::Bool(b) => if *b { "1" } else { "0" }.to_string(),
+                    Value::Date(d) => format!("'{}'", d),
+                    Value::DateTime(naive_date_time) => format!("'{}'", naive_date_time),
                 };
                 sql.replace_range(pos..pos + placeholder.len(), &value_str);
             }

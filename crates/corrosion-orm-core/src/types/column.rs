@@ -181,4 +181,24 @@ impl<C: ColumnTrait> BooleanColumn<C> {
     pub const fn new(column: C) -> Self {
         Self { column }
     }
+    pub fn gt<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+        WhereClause::gt(self.column, val)
+    }
+    pub fn gte<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+        WhereClause::new(WhereClauseType::Condition(Condition::gte(self.column, val)))
+    }
+    pub fn lt<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+        WhereClause::lt(self.column, val)
+    }
+    pub fn lte<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+        WhereClause::new(WhereClauseType::Condition(Condition::lte(self.column, val)))
+    }
+
+    pub fn between<V: Into<Value>>(self, min: V, max: V) -> WhereClause<C> {
+        WhereClause::new(WhereClauseType::Condition(Condition::between(
+            self.column,
+            min,
+            max,
+        )))
+    }
 }

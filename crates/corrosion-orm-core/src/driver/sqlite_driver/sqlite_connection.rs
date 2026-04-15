@@ -27,6 +27,8 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
                 Value::Int(i) => query.bind(i),
                 Value::Int64(i) => query.bind(i),
                 Value::Bool(b) => query.bind(b),
+                Value::Date(d) => query.bind(d.to_string()),
+                Value::DateTime(d) => query.bind(d.to_string()),
             }
         }
 
@@ -82,6 +84,8 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
                 Value::Int(i) => query.bind(i),
                 Value::Int64(i) => query.bind(i),
                 Value::Bool(b) => query.bind(b),
+                Value::Date(d) => query.bind(d.to_string()),
+                Value::DateTime(d) => query.bind(d.to_string()),
             }
         }
 
@@ -104,6 +108,8 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
                 Value::Int(i) => query.bind(i),
                 Value::Int64(i) => query.bind(i),
                 Value::Bool(b) => query.bind(b),
+                Value::Date(d) => query.bind(d.to_string()),
+                Value::DateTime(d) => query.bind(d.to_string()),
             }
         }
 
@@ -126,6 +132,8 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
                 Value::Int(i) => query.bind(i),
                 Value::Int64(i) => query.bind(i),
                 Value::Bool(b) => query.bind(b),
+                Value::Date(d) => query.bind(d.to_string()),
+                Value::DateTime(d) => query.bind(d.to_string()),
             }
         }
 
