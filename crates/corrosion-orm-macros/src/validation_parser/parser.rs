@@ -92,11 +92,7 @@ fn parse_field_validations(f: &mut Field) -> syn::Result<Vec<ValidationRule>> {
 
 fn is_string_type(ty: &syn::Type) -> bool {
     if let syn::Type::Path(tp) = ty {
-        return tp
-            .path
-            .segments
-            .last()
-            .map_or(false, |s| s.ident == "String");
+        return tp.path.segments.last().is_some_and(|s| s.ident == "String");
     }
     false
 }
