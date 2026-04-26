@@ -64,6 +64,12 @@ fn parse_field_validations(f: &mut Field) -> syn::Result<Vec<ValidationRule>> {
             ));
         }
         let a = deluxe::extract_attributes::<_, PatternAttribute>(&mut f.attrs)?;
+        if let Err(e) = regex::Regex::new(&a.pattern) {
+            return Err(syn::Error::new(
+                f.ty.span(),
+                format!("Invalid regex pattern: {e}"),
+            ));
+        }
         rules.push(ValidationRule::new(
             ident.clone(),
             Validation::new(
