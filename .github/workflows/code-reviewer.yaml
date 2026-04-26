@@ -1,0 +1,17 @@
+name: CodeRabbit AI Review
+
+on:
+  pull_request:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Code Review
+        uses: coderabbit/ai-reviewer@latest
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
