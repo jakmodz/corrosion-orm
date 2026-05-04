@@ -16,6 +16,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
     let pk_ident = &table.primary_key.iden;
     let field_idents: Vec<_> = table.fields.iter().map(|f| &f.iden).collect();
     let relation_idents: Vec<_> = table.relations.iter().map(|r| &r.ident).collect();
+    let relation_types: Vec<_> = table.relations.iter().map(|r| &r.ty).collect();
     let pk_column_variant =
         syn::Ident::new(&table.primary_key.name, proc_macro2::Span::call_site());
 
@@ -38,9 +39,24 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
             }
 
             async fn load_relations<Db: corrosion_orm_core::driver::executor::Executor>(&mut self, db: &mut Db) -> Result<(), corrosion_orm_core::error::CorrosionOrmError> {
-                // Eager loading is currently handled via the default-initialized relations
-                // For proper eager loading with joined queries, relations would need to be
-                // fetched based on their foreign keys
+                #(
+                    {
+                        let rel_pk_val = self.#relation_idents.get_primary_key_value();
+                        match rel_pk_val {
+                            corrosion_orm_core::query::query_type::Value::Int(rel_id) => {
+                                if let Some(loaded) = <#relation_types as corrosion_orm_core::model::repository::Repo<Db>>::get_by_id(rel_id, db).await? {
+                                    self.#relation_idents = loaded;
+                                }
+                            }
+                            corrosion_orm_core::query::query_type::Value::Int64(rel_id) => {
+                                if let Some(loaded) = <#relation_types as corrosion_orm_core::model::repository::Repo<Db>>::get_by_id(rel_id as i32, db).await? {
+                                    self.#relation_idents = loaded;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                )*
                 Ok(())
             }
         }
