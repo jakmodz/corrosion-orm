@@ -11,7 +11,7 @@ impl SqlDialect for MockSqliteDialect {
         "?".to_string()
     }
 }
-#[derive(Model, Clone, Debug)]
+#[derive(Model, Clone, Debug, Default)]
 #[Table(name = "users")]
 #[Index(name = "idx_users_id", fields = ["id"], unique = true)]
 pub struct User {
@@ -23,6 +23,17 @@ pub struct User {
     #[allow(unused)]
     pub name: String,
 }
+
+#[derive(Model)]
+pub struct Post {
+    #[Column(name = "id")]
+    #[PrimaryKey]
+    pub id: i32,
+    #[HasOne(foreign_key = "user_id", table = "users")]
+    #[allow(unused)]
+    pub user: User,
+}
+
 impl User {
     #[allow(dead_code)]
     pub(crate) fn example() -> Self {
@@ -49,6 +60,19 @@ pub(crate) async fn init_sqlite() -> SqliteDriver {
     let driver = SqliteDriver::new(config).await.unwrap();
     let mut ctx = QueryContext::from_model(
         User::get_schema(),
+        driver.acquire_conn().await.unwrap().get_dialect(),
+    );
+
+    driver
+        .acquire_conn()
+        .await
+        .unwrap()
+        .execute_query(&mut ctx)
+        .await
+        .unwrap();
+
+    let mut ctx = QueryContext::from_model(
+        Post::get_schema(),
         driver.acquire_conn().await.unwrap().get_dialect(),
     );
 

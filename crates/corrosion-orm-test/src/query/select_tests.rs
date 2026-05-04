@@ -13,7 +13,11 @@ mod tests {
     #[derive(Clone, Copy, Debug)]
     pub struct Col(&'static str);
     impl ColumnTrait for Col {
-        fn as_str(&self) -> &'static str {
+        fn table_name(&self) -> &'static str {
+            "users"
+        }
+
+        fn column_name(&self) -> &'static str {
             self.0
         }
     }
@@ -45,7 +49,7 @@ mod tests {
             .add_column("name")
             .where_clause(where_clause);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT id, name FROM users WHERE status = ?");
+        insta::assert_snapshot!(sql, @"SELECT id, name FROM users WHERE users.status = ?");
     }
 
     #[test]
@@ -58,7 +62,7 @@ mod tests {
             .where_clause(where_clause)
             .limit(5);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT name FROM users WHERE age > ? LIMIT 5");
+        insta::assert_snapshot!(sql, @"SELECT name FROM users WHERE users.age > ? LIMIT 5");
     }
 
     #[test]
@@ -79,7 +83,7 @@ mod tests {
             .add_column("name")
             .where_clause(where_clause);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT name FROM users WHERE status = ? AND score > ?");
+        insta::assert_snapshot!(sql, @"SELECT name FROM users WHERE users.status = ? AND users.score > ?");
     }
 
     #[test]
@@ -100,7 +104,7 @@ mod tests {
             .add_column("username")
             .where_clause(where_clause);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT username FROM users WHERE role = ? OR role = ?");
+        insta::assert_snapshot!(sql, @"SELECT username FROM users WHERE users.role = ? OR users.role = ?");
     }
 
     #[test]
@@ -120,7 +124,7 @@ mod tests {
             .add_column("total")
             .where_clause(where_clause);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT id, total FROM orders WHERE status IN (?, ?, ?)");
+        insta::assert_snapshot!(sql, @"SELECT id, total FROM orders WHERE users.status IN (?, ?, ?)");
     }
 
     #[test]
@@ -135,7 +139,7 @@ mod tests {
             .add_column("name")
             .where_clause(where_clause);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT name FROM users WHERE email LIKE ?");
+        insta::assert_snapshot!(sql, @"SELECT name FROM users WHERE users.email LIKE ?");
     }
 
     #[test]
@@ -147,7 +151,7 @@ mod tests {
             .add_column("title")
             .where_clause(where_clause);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT title FROM posts WHERE deleted_at IS NULL");
+        insta::assert_snapshot!(sql, @"SELECT title FROM posts WHERE users.deleted_at IS NULL");
     }
 
     #[test]
@@ -162,7 +166,7 @@ mod tests {
             .add_column("id")
             .where_clause(where_clause);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT id FROM users WHERE NOT banned = ?");
+        insta::assert_snapshot!(sql, @"SELECT id FROM users WHERE NOT users.banned = ?");
     }
 
     #[test]
@@ -191,7 +195,7 @@ mod tests {
             .where_clause(where_clause)
             .limit(20);
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT name, role FROM users WHERE (role = ? OR role = ?) AND experience > ? LIMIT 20");
+        insta::assert_snapshot!(sql, @"SELECT name, role FROM users WHERE (users.role = ? OR users.role = ?) AND users.experience > ? LIMIT 20");
     }
     #[test]
     fn test_select_with_order_by_asc() {
@@ -200,7 +204,7 @@ mod tests {
             .add_column("role")
             .add_order_by(OrderBy::new(Col("name"), OrderDirection::Asc));
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT name, role FROM users ORDER BY name ASC");
+        insta::assert_snapshot!(sql, @"SELECT name, role FROM users ORDER BY users.name ASC");
     }
     #[test]
     fn test_select_with_order_by_desc() {
@@ -209,6 +213,6 @@ mod tests {
             .add_column("role")
             .add_order_by(OrderBy::new(Col("name"), OrderDirection::Desc));
         let sql = render_select(select);
-        insta::assert_snapshot!(sql, @"SELECT name, role FROM users ORDER BY name DESC");
+        insta::assert_snapshot!(sql, @"SELECT name, role FROM users ORDER BY users.name DESC");
     }
 }

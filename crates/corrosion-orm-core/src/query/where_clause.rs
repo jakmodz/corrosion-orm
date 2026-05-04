@@ -157,7 +157,7 @@ impl<C: ColumnTrait> ToSql for Condition<C> {
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         macro_rules! binary_op {
             ($col:expr, $val:expr, $op:expr) => {{
-                ctx.sql.push_str($col.as_str());
+                $col.as_qualified().render(ctx);
                 ctx.sql.push_str($op);
                 ctx.push_bind_param($val.clone(), dialect);
             }};
@@ -173,15 +173,13 @@ impl<C: ColumnTrait> ToSql for Condition<C> {
             Condition::Like(c, v) => binary_op!(c, v, " LIKE "),
             Condition::NotLike(c, v) => binary_op!(c, v, " NOT LIKE "),
             Condition::IsNull(c) => {
-                ctx.sql.push_str(c.as_str());
+                c.as_qualified().render(ctx);
                 ctx.sql.push_str(" IS NULL");
             }
-            Condition::In(c, vals) => self.render_list_op(ctx, dialect, c.as_str(), " IN ", vals),
-            Condition::NotIn(c, vals) => {
-                self.render_list_op(ctx, dialect, c.as_str(), " NOT IN ", vals)
-            }
+            Condition::In(c, vals) => self.render_list_op(ctx, dialect, c, " IN ", vals),
+            Condition::NotIn(c, vals) => self.render_list_op(ctx, dialect, c, " NOT IN ", vals),
             Condition::Between(c, min, max) => {
-                ctx.sql.push_str(c.as_str());
+                c.as_qualified().render(ctx);
                 ctx.sql.push_str(" BETWEEN ");
                 ctx.push_bind_param(min.clone(), dialect);
                 ctx.sql.push_str(" AND ");
@@ -202,11 +200,11 @@ impl<C: ColumnTrait> Condition<C> {
         &self,
         ctx: &mut QueryContext,
         dialect: &dyn SqlDialect,
-        col: &str,
+        col: &C,
         op: &str,
         vals: &[Value],
     ) {
-        ctx.sql.push_str(col);
+        col.as_qualified().render(ctx);
         ctx.sql.push_str(op);
         ctx.sql.push('(');
         for (i, v) in vals.iter().enumerate() {

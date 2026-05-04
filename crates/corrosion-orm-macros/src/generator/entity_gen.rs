@@ -79,10 +79,11 @@ fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
 }
 
 pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
-    let ident = syn::Ident::new(
+    let module_ident = syn::Ident::new(
         &table.ident.to_string().to_lowercase(),
         proc_macro2::Span::call_site(),
     );
+    let struct_ident = &table.ident;
 
     let mut column_defs = Vec::new();
     let primary_key_field = &table.primary_key;
@@ -98,7 +99,7 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
     for field in &table.fields {
         let field_name_lower =
             syn::Ident::new(&field.name.to_lowercase(), proc_macro2::Span::call_site());
-        let column_name = &field.name; // <- here we define a new `column_name` for each field
+        let column_name = &field.name;
 
         let sql_type = get_sql_type_from_rust_type(&field.ty);
         let wrapper_type = sql_type_to_wrapper(&sql_type);
@@ -146,21 +147,28 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
             .iter()
             .map(|(_, column_name, _)| column_name)
             .collect::<Vec<_>>();
-        let columns_enum_def = quote! {
-            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-            #[allow(non_camel_case_types)]
-            pub enum Column {
-                #(#variants),*
-            }
 
-            impl corrosion_orm_core::types::ColumnTrait for Column {
-                fn as_str(&self) -> &'static str {
-                    match self {
-                        #(Self::#variants => #column_names),*
+        let columns_enum_def = quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                #[allow(non_camel_case_types)]
+                pub enum Column {
+                    #(#variants),*
+                }
+
+                impl corrosion_orm_core::types::ColumnTrait for Column {
+                    fn table_name(&self) -> &'static str {
+
+                        <super::#struct_ident as corrosion_orm_core::schema::table::TableSchema>::get_table_name()
+                    }
+
+                    fn column_name(&self) -> &'static str {
+                        match self {
+                            #(Self::#variants => #column_names),*
+                        }
                     }
                 }
-            }
         };
+
         columns_enum_def
     } else {
         quote! {
@@ -171,7 +179,7 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
     };
 
     quote! {
-        pub mod #ident {
+        pub mod #module_ident {
             #column_enum_def
             #columns_struct
         }

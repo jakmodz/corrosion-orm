@@ -43,7 +43,7 @@ impl<C: ColumnTrait> OrderBy<C> {
 
 impl<C: ColumnTrait> ToSql for OrderBy<C> {
     fn to_sql(&self, ctx: &mut QueryContext, _dialect: &dyn SqlDialect) {
-        ctx.sql.push_str(self.column.as_str());
+        self.column.as_qualified().render(ctx);
         match self.direction {
             OrderDirection::Asc => ctx.sql.push_str(" ASC"),
             OrderDirection::Desc => ctx.sql.push_str(" DESC"),

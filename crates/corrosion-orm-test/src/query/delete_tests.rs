@@ -10,7 +10,11 @@ mod tests {
     #[derive(Clone, Copy, Debug)]
     pub struct Col(&'static str);
     impl ColumnTrait for Col {
-        fn as_str(&self) -> &'static str {
+        fn table_name(&self) -> &'static str {
+            "users"
+        }
+
+        fn column_name(&self) -> &'static str {
             self.0
         }
     }
@@ -25,7 +29,7 @@ mod tests {
     fn test_delete_simple() {
         let delete = Delete::new("users").where_clause(WhereClause::eq(Col("id"), 1));
         let (sql, values) = render_delete(delete);
-        insta::assert_snapshot!(sql, @"DELETE FROM users WHERE id = ?");
+        insta::assert_snapshot!(sql, @"DELETE FROM users WHERE users.id = ?");
         assert_eq!(values.len(), 1)
     }
     #[test]
@@ -35,7 +39,7 @@ mod tests {
             WhereClause::eq(Col("name"), String::from("John")),
         ));
         let (sql, values) = render_delete(delete);
-        insta::assert_snapshot!(sql, @"DELETE FROM users WHERE id = ? AND name = ?");
+        insta::assert_snapshot!(sql, @"DELETE FROM users WHERE users.id = ? AND users.name = ?");
         assert_eq!(values.len(), 2)
     }
     #[test]
@@ -43,7 +47,7 @@ mod tests {
         let schema = User::get_schema();
         let delete = Delete::from(&schema).where_clause(WhereClause::eq(Col("id"), 1));
         let (sql, values) = render_delete(delete);
-        insta::assert_snapshot!(sql, @"DELETE FROM users WHERE id = ?");
+        insta::assert_snapshot!(sql, @"DELETE FROM users WHERE users.id = ?");
         assert_eq!(values.len(), 1)
     }
 }

@@ -2,9 +2,12 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::types::{
-    column_type::{SqlType, ToSqlType},
-    generation_strategy::GenerationType,
+use crate::{
+    schema::relation::RelationModel,
+    types::{
+        column_type::{SqlType, ToSqlType},
+        generation_strategy::GenerationType,
+    },
 };
 
 /// **Validation of primary keys like no primary in table or multiple of them is handled in parsing IR of table**
@@ -47,8 +50,11 @@ pub struct TableSchemaModel {
     pub indexes: Vec<IndexModel>,
     /// Primary key of the table
     pub primary_key: PrimaryKeyModel,
+    /// Relations of the table
+    pub relations: Vec<RelationModel>,
 }
 /// Struct representing the column schema model
+#[derive(Debug, Clone)]
 pub struct ColumnSchemaModel {
     /// Name of the column
     pub name: String,
@@ -87,6 +93,7 @@ impl TableSchemaModel {
                 generation_type: None,
                 ty: SqlType::Integer,
             },
+            relations: Vec::new(),
         }
     }
 
@@ -155,6 +162,9 @@ impl TableSchemaModel {
         names.push(self.primary_key.name.as_str());
         for field in &self.fields {
             names.push(field.name.as_str());
+        }
+        for rel in &self.relations {
+            names.push(rel.foreign_key.as_str());
         }
         names
     }

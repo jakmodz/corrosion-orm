@@ -15,6 +15,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
     let pk_ident = &table.primary_key.iden;
     let field_idents: Vec<_> = table.fields.iter().map(|f| &f.iden).collect();
+    let relation_idents: Vec<_> = table.relations.iter().map(|r| &r.ident).collect();
     let pk_column_variant =
         syn::Ident::new(&table.primary_key.name, proc_macro2::Span::call_site());
 
@@ -26,7 +27,21 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 #(
                     values.push(corrosion_orm_core::query::query_type::Value::from(self.#field_idents.clone()));
                 )*
+                #(
+                    values.push(self.#relation_idents.get_primary_key_value());
+                )*
                 values
+            }
+
+            pub fn get_primary_key_value(&self) -> corrosion_orm_core::query::query_type::Value {
+                corrosion_orm_core::query::query_type::Value::from(self.#pk_ident.clone())
+            }
+
+            async fn load_relations<Db: corrosion_orm_core::driver::executor::Executor>(&mut self, db: &mut Db) -> Result<(), corrosion_orm_core::error::CorrosionOrmError> {
+                // Eager loading is currently handled via the default-initialized relations
+                // For proper eager loading with joined queries, relations would need to be
+                // fetched based on their foreign keys
+                Ok(())
             }
         }
 
@@ -40,6 +55,10 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 use corrosion_orm_core::query::query_type::QueryContext;
 
                 let schema = Self::get_schema();
+
+                #(
+                    let mut #relation_idents = self.#relation_idents.save(db).await?;
+                )*
 
                 let check_query = corrosion_orm_core::query::select::Select::<#mod_name::Column>::from(&schema)
                     .where_clause(
@@ -67,7 +86,14 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 let fetch_query = corrosion_orm_core::query::select::Select::<#mod_name::Column>::from(&schema)
                     .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, self.#pk_ident.clone()));
                 fetch_query.to_sql(&mut fetch_ctx, db.get_dialect());
-                let saved = db.fetch_optional::<Self>(&mut fetch_ctx).await?;
+                let mut saved = db.fetch_optional::<Self>(&mut fetch_ctx).await?;
+
+                // Reattach saved relations
+                if let Some(ref mut entity) = saved {
+                    #(
+                        entity.#relation_idents = #relation_idents;
+                    )*
+                }
 
                 saved.ok_or(corrosion_orm_core::driver::error::DriverError::NotFound.into())
             }
@@ -80,7 +106,12 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 let schema = Self::get_schema();
                 let query = corrosion_orm_core::query::select::Select::<#mod_name::Column>::from(&schema);
                 query.to_sql(&mut ctx, db.get_dialect());
-                let results = db.fetch_all::<Self>(&mut ctx).await?;
+                let mut results = db.fetch_all::<Self>(&mut ctx).await?;
+
+                for result in &mut results {
+                    result.load_relations(db).await?;
+                }
+
                 Ok(results)
             }
             async fn get_by_id(id: Self::PrimaryKey, db: &mut Db) -> Result<Option<Self>, corrosion_orm_core::error::CorrosionOrmError> {
@@ -94,8 +125,9 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, id.clone()));
                 query.to_sql(&mut ctx, db.get_dialect());
                 let result = db.fetch_optional::<Self>(&mut ctx).await?;
-                if let Some(result) = result {
-                    Ok(Some(result))
+                if let Some(mut entity) = result {
+                    entity.load_relations(db).await?;
+                    Ok(Some(entity))
                 } else {
                     Ok(None)
                 }

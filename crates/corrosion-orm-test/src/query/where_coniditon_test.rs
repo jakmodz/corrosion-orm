@@ -5,6 +5,7 @@ mod tests {
     use corrosion_orm_core::query::query_type::{QueryContext, Value};
     use corrosion_orm_core::query::to_sql::ToSql;
     use corrosion_orm_core::query::where_clause::{Condition, WhereClause, WhereClauseType};
+    use corrosion_orm_core::types::ColumnTrait;
 
     #[derive(Clone, Copy)]
     pub enum TestColumn {
@@ -31,8 +32,12 @@ mod tests {
         Suspended,
     }
 
-    impl corrosion_orm_core::types::column_trait::ColumnTrait for TestColumn {
-        fn as_str(&self) -> &'static str {
+    impl ColumnTrait for TestColumn {
+        fn table_name(&self) -> &'static str {
+            "users"
+        }
+
+        fn column_name(&self) -> &'static str {
             match self {
                 Self::Age => "age",
                 Self::Status => "status",
@@ -72,7 +77,7 @@ mod tests {
     fn test_simple_eq() {
         let clause = WhereClauseType::Condition(Condition::Eq(TestColumn::Age, Value::Int(18)));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"age = ?");
+        insta::assert_snapshot!(sql, @"users.age = ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -83,7 +88,7 @@ mod tests {
             Value::String("inactive".to_string()),
         ));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"status != ?");
+        insta::assert_snapshot!(sql, @"users.status != ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -91,7 +96,7 @@ mod tests {
     fn test_simple_lt() {
         let clause = WhereClauseType::Condition(Condition::Lt(TestColumn::Price, Value::Int(100)));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"price < ?");
+        insta::assert_snapshot!(sql, @"users.price < ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -99,7 +104,7 @@ mod tests {
     fn test_simple_gt() {
         let clause = WhereClauseType::Condition(Condition::Gt(TestColumn::Score, Value::Int(50)));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"score > ?");
+        insta::assert_snapshot!(sql, @"users.score > ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -107,7 +112,7 @@ mod tests {
     fn test_simple_lte() {
         let clause = WhereClauseType::Condition(Condition::Lte(TestColumn::Age, Value::Int(65)));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"age <= ?");
+        insta::assert_snapshot!(sql, @"users.age <= ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -115,7 +120,7 @@ mod tests {
     fn test_simple_gte() {
         let clause = WhereClauseType::Condition(Condition::Gte(TestColumn::Rating, Value::Int(4)));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"rating >= ?");
+        insta::assert_snapshot!(sql, @"users.rating >= ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -126,7 +131,7 @@ mod tests {
             Value::String("%@gmail.com".to_string()),
         ));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"email LIKE ?");
+        insta::assert_snapshot!(sql, @"users.email LIKE ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -137,7 +142,7 @@ mod tests {
             Value::String("test%".to_string()),
         ));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"name NOT LIKE ?");
+        insta::assert_snapshot!(sql, @"users.name NOT LIKE ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -151,7 +156,7 @@ mod tests {
             ],
         ));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"status IN (?, ?)");
+        insta::assert_snapshot!(sql, @"users.status IN (?, ?)");
         assert_eq!(values.len(), 2);
     }
 
@@ -162,7 +167,7 @@ mod tests {
             vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         ));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"category NOT IN (?, ?, ?)");
+        insta::assert_snapshot!(sql, @"users.category NOT IN (?, ?, ?)");
         assert_eq!(values.len(), 3);
     }
 
@@ -170,7 +175,7 @@ mod tests {
     fn test_simple_is_null() {
         let clause = WhereClauseType::Condition(Condition::IsNull(TestColumn::DeletedAt));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"deleted_at IS NULL");
+        insta::assert_snapshot!(sql, @"users.deleted_at IS NULL");
         assert_eq!(values.len(), 0);
     }
     #[test]
@@ -181,7 +186,7 @@ mod tests {
             Value::Int(30),
         ));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"age BETWEEN ? AND ?");
+        insta::assert_snapshot!(sql, @"users.age BETWEEN ? AND ?");
         assert_eq!(values.len(), 2);
     }
     #[test]
@@ -197,7 +202,7 @@ mod tests {
             ))),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"age = ? AND status = ?");
+        insta::assert_snapshot!(sql, @"users.age = ? AND users.status = ?");
         assert_eq!(values.len(), 2);
     }
 
@@ -220,7 +225,7 @@ mod tests {
             )),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"age = ? AND status = ? AND score > ?");
+        insta::assert_snapshot!(sql, @"users.age = ? AND users.status = ? AND users.score > ?");
         assert_eq!(values.len(), 3);
     }
 
@@ -237,7 +242,7 @@ mod tests {
             ))),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"role = ? OR role = ?");
+        insta::assert_snapshot!(sql, @"users.role = ? OR users.role = ?");
         assert_eq!(values.len(), 2);
     }
 
@@ -260,7 +265,7 @@ mod tests {
             )),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"status = ? OR status = ? OR status = ?");
+        insta::assert_snapshot!(sql, @"users.status = ? OR users.status = ? OR users.status = ?");
         assert_eq!(values.len(), 3);
     }
 
@@ -284,7 +289,7 @@ mod tests {
             ))),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"(age = ? OR age = ?) AND status = ?");
+        insta::assert_snapshot!(sql, @"(users.age = ? OR users.age = ?) AND users.status = ?");
         assert_eq!(values.len(), 3);
     }
 
@@ -308,7 +313,7 @@ mod tests {
             )),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"verified = ? AND (score > ? OR premium = ?)");
+        insta::assert_snapshot!(sql, @"users.verified = ? AND (users.score > ? OR users.premium = ?)");
         assert_eq!(values.len(), 3);
     }
 
@@ -332,7 +337,7 @@ mod tests {
             )),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"admin = ? OR moderator = ? AND experience > ?");
+        insta::assert_snapshot!(sql, @"users.admin = ? OR users.moderator = ? AND users.experience > ?");
         assert_eq!(values.len(), 3);
     }
 
@@ -368,7 +373,7 @@ mod tests {
             ))),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"(status = ? OR status = ?) AND (age > ? OR premium = ?) AND deleted = ?");
+        insta::assert_snapshot!(sql, @"(users.status = ? OR users.status = ?) AND (users.age > ? OR users.premium = ?) AND users.deleted = ?");
         assert_eq!(values.len(), 5);
     }
 
@@ -378,7 +383,7 @@ mod tests {
             TestColumn::Email,
         ))));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"NOT email IS NULL");
+        insta::assert_snapshot!(sql, @"NOT users.email IS NULL");
         assert_eq!(values.len(), 0);
     }
 
@@ -396,7 +401,7 @@ mod tests {
             ))),
         )));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"NOT (banned = ? AND violations > ?)");
+        insta::assert_snapshot!(sql, @"NOT (users.banned = ? AND users.violations > ?)");
         assert_eq!(values.len(), 2);
     }
 
@@ -414,7 +419,7 @@ mod tests {
             ))),
         )));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"NOT (status = ? OR archived = ?)");
+        insta::assert_snapshot!(sql, @"NOT (users.status = ? OR users.archived = ?)");
         assert_eq!(values.len(), 2);
     }
 
@@ -425,7 +430,7 @@ mod tests {
             WhereClauseType::Condition(Condition::Eq(TestColumn::Active, Value::Bool(true))),
         ))));
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"NOT NOT active = ?");
+        insta::assert_snapshot!(sql, @"NOT NOT users.active = ?");
         assert_eq!(values.len(), 1);
     }
 
@@ -449,7 +454,7 @@ mod tests {
             )))),
         );
         let (sql, values) = render_clause(clause);
-        insta::assert_snapshot!(sql, @"verified = ? AND NOT (suspended = ? OR banned = ?)");
+        insta::assert_snapshot!(sql, @"users.verified = ? AND NOT (users.suspended = ? OR users.banned = ?)");
         assert_eq!(values.len(), 3);
     }
 
@@ -470,13 +475,13 @@ mod tests {
         let mut ctx = QueryContext::new();
         let dialect = MockSqliteDialect;
         clause.to_sql(&mut ctx, &dialect);
-        insta::assert_snapshot!(ctx.sql, @"age = ? AND active = ?");
+        insta::assert_snapshot!(ctx.sql, @"users.age = ? AND users.active = ?");
     }
     #[test]
     fn test_simple_condition_from_entity_column() {
         let clause: WhereClause<_> = user::COLUMN.name.eq(Value::String("John".to_string()));
         let (sql, values) = render_clause(clause.clause);
-        insta::assert_snapshot!(sql, @"name = ?");
+        insta::assert_snapshot!(sql, @"users.name = ?");
         assert_eq!(values.len(), 1);
         assert_eq!(values[0], Value::String("John".to_string()))
     }
@@ -487,7 +492,7 @@ mod tests {
             .contains(Value::String("John".to_string()));
         let (sql, values) = render_clause(clause.clause);
 
-        insta::assert_snapshot!(sql, @"name LIKE ?");
+        insta::assert_snapshot!(sql, @"users.name LIKE ?");
         assert_eq!(values.len(), 1);
         assert_eq!(values[0], Value::String("%John%".to_string()));
     }
@@ -497,7 +502,7 @@ mod tests {
             .name
             .starts_with(Value::String("John".to_string()));
         let (sql, values) = render_clause(clause.clause);
-        insta::assert_snapshot!(sql, @"name LIKE ?");
+        insta::assert_snapshot!(sql, @"users.name LIKE ?");
         assert_eq!(values.len(), 1);
         assert_eq!(values[0], Value::String("John%".to_string()));
     }
@@ -505,7 +510,7 @@ mod tests {
     fn test_numeric_column_entity() {
         let clause: WhereClause<_> = user::COLUMN.id.eq(30);
         let (sql, values) = render_clause(clause.clause);
-        insta::assert_snapshot!(sql, @"id = ?");
+        insta::assert_snapshot!(sql, @"users.id = ?");
         assert_eq!(values.len(), 1);
         assert_eq!(values[0], Value::Int(30));
     }

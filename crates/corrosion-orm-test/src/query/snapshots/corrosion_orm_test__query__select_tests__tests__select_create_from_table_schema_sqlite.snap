@@ -2,4 +2,4 @@
 source: crates/corrosion-orm-test/src/query/select_tests.rs
 expression: ctx.sql
 ---
-SELECT id, name FROM users
+SELECT users.id, users.name FROM users

@@ -1,23 +1,33 @@
 #[cfg(test)]
 mod tests {
     use crate::User;
+    use crate::test_entities::Post;
+    use corrosion_orm_core::{
+        dialect::{sql_dialect::SqlDialect, sqlite_dialect::sqlite::SqliteDialect},
+        prelude::TableSchema,
+    };
     #[allow(clippy::disallowed_types)]
     use sqlx::SqlitePool;
 
     #[test]
     fn test_generate_ddl_sqlite()
     -> Result<(), corrosion_orm_core::schema::table::SchemaValidationError> {
-        use corrosion_orm_core::dialect::{
-            sql_dialect::SqlDialect, sqlite_dialect::sqlite::SqliteDialect,
-        };
-        use corrosion_orm_core::schema::table::TableSchema;
         let dialect = SqliteDialect;
         let schema = User::get_schema();
         let ddl = dialect.generate_ddl(&schema)?;
-
         insta::assert_snapshot!(ddl);
         Ok(())
     }
+    #[test]
+    fn test_generate_ddl_relation_has_one()
+    -> Result<(), corrosion_orm_core::schema::table::SchemaValidationError> {
+        let dialect = SqliteDialect;
+        let schema = Post::get_schema();
+        let ddl = dialect.generate_ddl(&schema)?;
+        insta::assert_snapshot!(ddl);
+        Ok(())
+    }
+
     #[tokio::test]
     async fn test_generate_full_ddl_sqlite_connection() {
         use corrosion_orm_core::dialect::{

@@ -1,6 +1,8 @@
 use crate::TableData;
 use crate::model::Field;
 use crate::model::primary_key::PrimaryKeyField;
+use crate::model::relation::RelationDefinition;
+use corrosion_orm_core::schema::relation::RelationType;
 use corrosion_orm_core::types::generation_strategy::GenerationType;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -15,13 +17,20 @@ pub fn generate_schema_impl(table: &TableData) -> TokenStream {
     for index in table.indexes.iter() {
         indexes.push(generate_index(index));
     }
+    let mut checks: Vec<TokenStream> = Vec::new();
+    let mut relations: Vec<TokenStream> = Vec::new();
+    for relation in table.relations.iter() {
+        let (check, relation) = generate_relation(relation, &table.name);
+        checks.push(check);
+        relations.push(relation);
+    }
 
     let table_name = &table.name;
     let struct_ident = &table.ident;
 
     let primary_key = generate_primary_key(&table.primary_key);
-
     quote! {
+        #(#checks)*
         impl corrosion_orm_core::schema::table::TableSchema for #struct_ident{
             fn get_table_name()->&'static str{
                 #table_name
@@ -31,7 +40,8 @@ pub fn generate_schema_impl(table: &TableData) -> TokenStream {
                     name: String::from(#table_name),
                     fields: vec!(#(#fields),*),
                     indexes: vec!(#(#indexes),*),
-                    primary_key: #primary_key
+                    primary_key: #primary_key,
+                    relations: vec!(#(#relations),*)
                 }
             }
         }
@@ -93,4 +103,67 @@ fn generate_primary_key(primary_key: &PrimaryKeyField) -> TokenStream {
             <#field_type>::default()
         )
     }
+}
+fn generate_relation(
+    relation: &RelationDefinition,
+    source_table: &str,
+) -> (TokenStream, TokenStream) {
+    let ty = match &relation.relation_type {
+        RelationType::HasOne => quote! {corrosion_orm_core::schema::relation::RelationType::HasOne},
+        RelationType::HasMany => {
+            quote! {corrosion_orm_core::schema::relation::RelationType::HasMany}
+        }
+        RelationType::BelongsTo => {
+            quote! {corrosion_orm_core::schema::relation::RelationType::BelongsTo}
+        }
+        RelationType::BelongsToMany => {
+            quote! {corrosion_orm_core::schema::relation::RelationType::BelongsToMany}
+        }
+    };
+    let key = &relation.foreign_key;
+    let relation_name = &relation.relation_name;
+    let field_type = &relation.ty;
+    let is_unique = match &relation.relation_type {
+        RelationType::HasOne => true,
+        RelationType::HasMany | RelationType::BelongsTo | RelationType::BelongsToMany => false,
+    };
+
+    let table_expr = match &relation.table {
+        Some(t) => quote! { String::from(#t) },
+        None => {
+            quote! { <#field_type as corrosion_orm_core::schema::table::TableSchema>::get_table_name().to_string() }
+        }
+    };
+
+    let check = quote! {
+        #[diagnostic::on_unimplemented(
+            message = "`{Self}` must derive `Model` to be used in a relation",
+            label = "this type does not derive `Model`",
+            note = "add `#[derive(Model)]` to `{Self}`"
+        )]
+        trait MustDeriveModel: corrosion_orm_core::schema::table::TableSchema {}
+        impl<T: corrosion_orm_core::schema::table::TableSchema> MustDeriveModel for T {}
+
+        const _: fn() = || {
+            fn check_relation_target<T: MustDeriveModel>() {}
+            check_relation_target::<#field_type>();
+        };
+    };
+    let relation = quote! {
+        corrosion_orm_core::schema::relation::RelationModel::new(
+            #ty,
+            #table_expr,
+            String::from(#key),
+            <#field_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.name,
+            String::from(#relation_name),
+            String::from(#source_table),
+            corrosion_orm_core::schema::table::ColumnSchemaModel {
+                name: String::from(#key),
+                is_nullable: false,
+                is_unique: #is_unique,
+                sql_type: <#field_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.ty
+            },
+        )
+    };
+    (check, relation)
 }

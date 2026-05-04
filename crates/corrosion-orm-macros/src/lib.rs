@@ -118,7 +118,7 @@ use validation_parser::parser::parse_validation;
 ///     price: f64,
 /// }
 /// ```
-#[proc_macro_derive(Model, attributes(Table, Column, PrimaryKey, Index))]
+#[proc_macro_derive(Model, attributes(Table, Column, PrimaryKey, Index, HasOne))]
 pub fn model_derive(input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as DeriveInput);
     let model = match parse_model(&mut ast) {

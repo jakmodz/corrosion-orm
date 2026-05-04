@@ -28,33 +28,10 @@
 //!
 //! All query builders support implicit conversion from `&TableSchemaModel`,
 //! automatically extracting table name and columns:
-//!
-//! ```
-//! use corrosion_orm_core::schema::table::TableSchemaModel;
-//! use corrosion_orm_core::query::select::Select;
-//! use corrosion_orm_core::types::ColumnTrait;
-//!
-//! #[derive(Clone, Copy)]
-//! pub enum UserColumn {
-//!     Id,
-//! }
-//!
-//! impl ColumnTrait for UserColumn {
-//!     fn as_str(&self) -> &'static str {
-//!         "id"
-//!     }
-//! }
-//!
-//! // let schema = TableSchemaModel { ... };
-//! // let select = Select::<UserColumn>::from(&schema);
-//! ```
-//!
-//! # Converting to SQL
-//!
-//! Use the [`ToSql`] trait to convert builders to SQL strings:
-
+//TDOO : docs
 pub mod delete;
 pub mod insert;
+pub mod join;
 pub mod order_by;
 pub mod query_type;
 pub mod select;

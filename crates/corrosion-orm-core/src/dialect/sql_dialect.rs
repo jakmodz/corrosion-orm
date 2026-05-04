@@ -1,6 +1,9 @@
 use crate::{
-    schema::table::{
-        ColumnSchemaModel, IndexModel, PrimaryKeyModel, SchemaValidationError, TableSchemaModel,
+    schema::{
+        relation::RelationModel,
+        table::{
+            ColumnSchemaModel, IndexModel, PrimaryKeyModel, SchemaValidationError, TableSchemaModel,
+        },
     },
     types::column_type::SqlType,
 };
@@ -20,10 +23,21 @@ pub trait SqlDialect: Send + Sync {
         format!(
             "{}{} {} {}",
             TAB,
-            primary_key.name,
+            &primary_key.name,
             self.cast_type(&primary_key.ty),
             PRIMARY_KEY_TYPE
         )
+    }
+    /// Formats the FOREIGN KEY column definition (no trailing newline or comma).
+    fn cast_foreign_key(&self, relation: &RelationModel) -> String {
+        format!(
+            "{}FOREIGN KEY ({}) REFERENCES {}({})",
+            TAB, &relation.foreign_key, &relation.table, &relation.target_key
+        )
+    }
+    /// Generates the column definition for a relation field (no trailing newline or comma).
+    fn cast_relation_field(&self, relation: &RelationModel) -> String {
+        self.cast_column(&relation.field)
     }
 
     /// Formats a single non-PK column definition (no trailing newline or comma).
@@ -31,7 +45,7 @@ pub trait SqlDialect: Send + Sync {
         let mut s = format!(
             "{}{} {}",
             TAB,
-            column.name,
+            &column.name,
             self.cast_type(&column.sql_type)
         );
         if column.is_nullable {
@@ -70,10 +84,17 @@ pub trait SqlDialect: Send + Sync {
         for field in &schema.fields {
             columns.push(self.cast_column(field));
         }
+        for relation in &schema.relations {
+            columns.push(self.cast_relation_field(relation));
+        }
+        for relation in &schema.relations {
+            columns.push(self.cast_foreign_key(relation));
+        }
+
         let mut ddl = format!(
             "CREATE TABLE {}{} (\n{}\n);\n",
             guard,
-            schema.name,
+            &schema.name,
             columns.join(",\n")
         );
         for index in &schema.indexes {
@@ -99,7 +120,7 @@ pub trait SqlDialect: Send + Sync {
         let columns = index.fields.join(", ");
         format!(
             "CREATE {}INDEX IF NOT EXISTS {} ON {} ({});\n",
-            unique, index.name, table_name, columns
+            unique, &index.name, table_name, columns
         )
     }
 

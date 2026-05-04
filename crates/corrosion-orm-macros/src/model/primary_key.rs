@@ -18,14 +18,14 @@ pub struct PrimaryKeyField {
     pub generation_strategy: Option<GenerationType>,
 }
 
-impl From<(ColumnAttribute, PrimaryKeyAttribute, &syn::Field)> for PrimaryKeyField {
+impl From<(&ColumnAttribute, PrimaryKeyAttribute, &syn::Field)> for PrimaryKeyField {
     fn from(
-        (col_attr, pk_attr, syn_field): (ColumnAttribute, PrimaryKeyAttribute, &syn::Field),
+        (col_attr, pk_attr, syn_field): (&ColumnAttribute, PrimaryKeyAttribute, &syn::Field),
     ) -> Self {
         let field_name = if col_attr.name.is_empty() {
             syn_field.ident.as_ref().unwrap().to_string()
         } else {
-            col_attr.name
+            col_attr.name.clone()
         };
         PrimaryKeyField {
             iden: syn_field.ident.clone().unwrap(),

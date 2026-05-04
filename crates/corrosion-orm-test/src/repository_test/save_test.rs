@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{init_sqlite, test_entities::User};
+    use crate::{Post, init_sqlite, test_entities::User};
     use corrosion_orm_core::prelude::*;
 
     #[tokio::test]
@@ -125,6 +125,20 @@ mod tests {
         assert_eq!(result1?.unwrap().name, "Alice");
         assert_eq!(result2?.unwrap().name, "Bob");
         assert_eq!(result3?.unwrap().name, "Charlie");
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_save_cascade() -> Result<(), CorrosionOrmError> {
+        let post = Post {
+            id: 1,
+            user: User {
+                id: 1,
+                name: "Test User".to_string(),
+            },
+        };
+        let driver = init_sqlite().await;
+        let mut conn = driver.acquire_conn().await?;
+        post.save(&mut conn).await?;
         Ok(())
     }
 }

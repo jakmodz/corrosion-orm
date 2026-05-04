@@ -12,6 +12,17 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
     let pk_field_assign = generate_pk_field_assign(&table.primary_key);
     let field_assigns: Vec<TokenStream> = table.fields.iter().map(generate_field_assign).collect();
 
+    let relation_field_assigns: Vec<TokenStream> = table
+        .relations
+        .iter()
+        .map(|rel| {
+            let field_name = syn::Ident::new(&rel.relation_name, proc_macro2::Span::call_site());
+            quote! {
+                #field_name: Default::default(),
+            }
+        })
+        .collect();
+    // SILLY default call  TODO:
     let pk_bound = type_bounds(&table.primary_key.ty);
     let field_bounds: Vec<TokenStream> = table.fields.iter().map(|f| type_bounds(&f.ty)).collect();
 
@@ -26,6 +37,7 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
                 Ok(Self {
                     #pk_field_assign
                     #(#field_assigns)*
+                    #(#relation_field_assigns)*
                 })
             }
         }

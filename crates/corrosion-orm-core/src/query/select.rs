@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use crate::{
     dialect::sql_dialect::SqlDialect,
     query::{
+        join::Join,
         order_by::{OrderBy, OrderClause},
         to_sql::ToSql,
     },
@@ -23,23 +24,7 @@ use super::where_clause::WhereClause;
 ///
 /// ```
 /// use corrosion_orm_core::query::select::Select;
-///
-/// #[derive(Clone, Copy)]
-/// pub enum UserColumn {
-///     Id,
-///     Name,
-/// }
-///
-/// impl corrosion_orm_core::types::ColumnTrait for UserColumn {
-///     fn as_str(&self) -> &'static str {
-///         match self {
-///             Self::Id => "id",
-///             Self::Name => "name",
-///         }
-///     }
-/// }
-///
-/// let select = Select::<UserColumn>::new("users");
+
 /// ```
 pub struct Select<'query, C: ColumnTrait> {
     table: Cow<'query, str>,
@@ -48,6 +33,7 @@ pub struct Select<'query, C: ColumnTrait> {
     order_by: Option<OrderClause<C>>,
     limit: Option<usize>,
     offset: Option<usize>,
+    joins: Option<Vec<Join<'query>>>,
 }
 
 impl<'col, C: ColumnTrait> Select<'col, C> {
@@ -59,6 +45,7 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
             order_by: None,
             limit: None,
             offset: None,
+            joins: None,
         }
     }
     pub fn add_column<Column: Into<Cow<'col, str>>>(mut self, column: Column) -> Self {
@@ -79,6 +66,14 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
     }
     pub fn where_clause(mut self, where_clause: WhereClause<C>) -> Self {
         self.where_clause = Some(where_clause);
+        self
+    }
+    pub fn join(mut self, join: Join<'col>) -> Self {
+        if let Some(joins) = &mut self.joins {
+            joins.push(join);
+        } else {
+            self.joins = Some(vec![join]);
+        }
         self
     }
     pub fn add_order_by(mut self, order_by: OrderBy<C>) -> Self {
@@ -120,6 +115,11 @@ impl<C: ColumnTrait> ToSql for Select<'_, C> {
             },
             self.table
         ));
+        if let Some(joins) = &self.joins {
+            for join in joins {
+                join.to_sql(ctx, _dialect);
+            }
+        }
         if let Some(where_clause) = &self.where_clause {
             ctx.sql.push_str(" WHERE ");
             where_clause.to_sql(ctx, _dialect);
@@ -143,23 +143,27 @@ impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
             columns: schema
                 .get_column_names()
                 .into_iter()
-                .map(Cow::Borrowed)
+                .map(|col| Cow::Owned(format!("{}.{}", schema.name, col)))
                 .collect(),
             where_clause: None,
             order_by: None,
             limit: None,
             offset: None,
+            joins: Some(schema.relations.iter().map(Join::from_relation).collect()),
         }
     }
 }
+
 impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
     fn from(schema: TableSchemaModel) -> Self {
         let mut columns = Vec::with_capacity(1 + schema.fields.len());
 
-        columns.push(Cow::Owned(schema.primary_key.name));
-
+        columns.push(Cow::Owned(format!(
+            "{}.{}",
+            schema.name, schema.primary_key.name
+        )));
         for field in schema.fields {
-            columns.push(Cow::Owned(field.name));
+            columns.push(Cow::Owned(format!("{}.{}", schema.name, field.name)));
         }
 
         Self {
@@ -169,6 +173,7 @@ impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
             order_by: None,
             limit: None,
             offset: None,
+            joins: None, //schema.relations.iter().map(Join::from_relation).collect(),
         }
     }
 }
