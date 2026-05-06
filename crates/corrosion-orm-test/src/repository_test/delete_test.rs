@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{User, init_sqlite};
+    use crate::{Post, User, init_sqlite};
     use corrosion_orm_core::prelude::*;
 
     #[tokio::test]
@@ -76,6 +76,23 @@ mod tests {
         let mut conn = driver.acquire_conn().await.unwrap();
         let result = User::get_by_id(1, &mut conn).await?;
         assert!(result.is_none());
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_cascade_delete_has_one() -> Result<(), CorrosionOrmError> {
+        let driver = init_sqlite().await;
+        let mut tx = driver.acquire_conn().await.unwrap();
+        let post = Post {
+            id: 1,
+            teacher_id: 1,
+            user: User {
+                id: 1,
+                name: "Test User".to_string(),
+            },
+        };
+        post.save(&mut tx).await.unwrap();
+        post.delete(&mut tx).await?;
+
         Ok(())
     }
 }

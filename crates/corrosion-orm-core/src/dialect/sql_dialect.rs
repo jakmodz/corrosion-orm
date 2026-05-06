@@ -1,6 +1,6 @@
 use crate::{
     schema::{
-        relation::RelationModel,
+        relation::{RelationModel, RelationType},
         table::{
             ColumnSchemaModel, IndexModel, PrimaryKeyModel, SchemaValidationError, TableSchemaModel,
         },
@@ -85,10 +85,21 @@ pub trait SqlDialect: Send + Sync {
             columns.push(self.cast_column(field));
         }
         for relation in &schema.relations {
-            columns.push(self.cast_relation_field(relation));
+            match relation.relation_type {
+                RelationType::BelongsTo | RelationType::HasOne => {
+                    columns.push(self.cast_relation_field(relation));
+                }
+                RelationType::HasMany | RelationType::BelongsToMany => {}
+            }
         }
+
         for relation in &schema.relations {
-            columns.push(self.cast_foreign_key(relation));
+            match relation.relation_type {
+                RelationType::BelongsTo | RelationType::HasOne => {
+                    columns.push(self.cast_foreign_key(relation));
+                }
+                RelationType::HasMany | RelationType::BelongsToMany => {}
+            }
         }
 
         let mut ddl = format!(

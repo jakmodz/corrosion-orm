@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use thiserror::Error;
 
 use crate::{
-    schema::relation::RelationModel,
+    schema::relation::{RelationModel, RelationType},
     types::{
         column_type::{SqlType, ToSqlType},
         generation_strategy::GenerationType,
@@ -164,7 +164,12 @@ impl TableSchemaModel {
             names.push(field.name.as_str());
         }
         for rel in &self.relations {
-            names.push(rel.foreign_key.as_str());
+            match rel.relation_type {
+                RelationType::BelongsTo | RelationType::HasOne => {
+                    names.push(rel.foreign_key.as_str());
+                }
+                _ => {}
+            }
         }
         names
     }

@@ -22,9 +22,26 @@ use super::where_clause::WhereClause;
 /// column references in the `WhereClause`. This replaces raw strings with
 /// compile-time validated enum variants.
 ///
+/// # Examples
+///
 /// ```
 /// use corrosion_orm_core::query::select::Select;
-
+/// use corrosion_orm_core::query::where_clause::WhereClause;
+/// use corrosion_orm_core::types::ColumnTrait;
+///
+/// #[derive(Clone, Copy)]
+/// enum UserColumn { Id, Name }
+/// impl ColumnTrait for UserColumn {
+///     fn table_name(&self) -> &'static str { "users" }
+///     fn column_name(&self) -> &'static str {
+///         match self { Self::Id => "id", Self::Name => "name" }
+///     }
+/// }
+///
+/// let query = Select::<UserColumn>::new("users")
+///     .add_column("id")
+///     .add_column("name")
+///     .where_clause(WhereClause::eq(UserColumn::Id, 1));
 /// ```
 pub struct Select<'query, C: ColumnTrait> {
     table: Cow<'query, str>,
@@ -149,21 +166,30 @@ impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
             order_by: None,
             limit: None,
             offset: None,
-            joins: Some(schema.relations.iter().map(Join::from_relation).collect()),
+            joins: Some(
+                schema
+                    .relations
+                    .iter()
+                    .filter(|r| {
+                        matches!(
+                            r.relation_type,
+                            crate::schema::relation::RelationType::HasOne
+                                | crate::schema::relation::RelationType::BelongsTo
+                        )
+                    })
+                    .map(Join::from_relation)
+                    .collect(),
+            ),
         }
     }
 }
 
 impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
     fn from(schema: TableSchemaModel) -> Self {
-        let mut columns = Vec::with_capacity(1 + schema.fields.len());
+        let mut columns = Vec::new();
 
-        columns.push(Cow::Owned(format!(
-            "{}.{}",
-            schema.name, schema.primary_key.name
-        )));
-        for field in schema.fields {
-            columns.push(Cow::Owned(format!("{}.{}", schema.name, field.name)));
+        for col in schema.get_column_names() {
+            columns.push(Cow::Owned(format!("{}.{}", schema.name, col)));
         }
 
         Self {
@@ -173,7 +199,7 @@ impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
             order_by: None,
             limit: None,
             offset: None,
-            joins: None, //schema.relations.iter().map(Join::from_relation).collect(),
+            joins: None,
         }
     }
 }

@@ -8,7 +8,6 @@ use crate::{
     },
     types::ColumnTrait,
 };
-//TODO: example
 use std::borrow::Cow;
 /// UPDATE query builder.
 ///
@@ -19,8 +18,23 @@ use std::borrow::Cow;
 ///
 /// ```
 /// use corrosion_orm_core::query::update::Update;
-/// use std::borrow::Cow;
-
+/// use corrosion_orm_core::query::where_clause::WhereClause;
+/// use corrosion_orm_core::types::ColumnTrait;
+///
+/// #[derive(Clone, Copy)]
+/// enum UserColumn { Id, Status }
+/// impl ColumnTrait for UserColumn {
+///     fn table_name(&self) -> &'static str { "users" }
+///     fn column_name(&self) -> &'static str {
+///         match self { Self::Id => "id", Self::Status => "status" }
+///     }
+/// }
+///
+/// let query = Update::<UserColumn>::new()
+///     .table("users".into())
+///     .columns(vec!["status"])
+///     .values(vec!["active"])
+///     .where_clause(WhereClause::eq(UserColumn::Id, 1));
 /// ```
 pub struct Update<'query, C: ColumnTrait> {
     table: Cow<'query, str>,

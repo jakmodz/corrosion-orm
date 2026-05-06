@@ -7,6 +7,19 @@ use corrosion_orm_core::types::generation_strategy::GenerationType;
 use proc_macro2::TokenStream;
 use quote::quote;
 
+fn extract_vec_inner_type(ty: &syn::Type) -> syn::Type {
+    if let syn::Type::Path(type_path) = ty
+        && let Some(segment) = type_path.path.segments.last()
+        && segment.ident == "Vec"
+        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
+        && let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first()
+    {
+        return inner_ty.clone();
+    }
+
+    ty.clone()
+}
+
 pub fn generate_schema_impl(table: &TableData) -> TokenStream {
     let mut fields: Vec<TokenStream> = Vec::new();
     for field in table.fields.iter() {
@@ -19,14 +32,15 @@ pub fn generate_schema_impl(table: &TableData) -> TokenStream {
     }
     let mut checks: Vec<TokenStream> = Vec::new();
     let mut relations: Vec<TokenStream> = Vec::new();
-    for relation in table.relations.iter() {
-        let (check, relation) = generate_relation(relation, &table.name);
+    let struct_ident = &table.ident;
+    for (relation_index, relation) in table.relations.iter().enumerate() {
+        let (check, relation) =
+            generate_relation(relation, &table.name, relation_index, struct_ident);
         checks.push(check);
         relations.push(relation);
     }
 
     let table_name = &table.name;
-    let struct_ident = &table.ident;
 
     let primary_key = generate_primary_key(&table.primary_key);
     quote! {
@@ -107,6 +121,8 @@ fn generate_primary_key(primary_key: &PrimaryKeyField) -> TokenStream {
 fn generate_relation(
     relation: &RelationDefinition,
     source_table: &str,
+    relation_index: usize,
+    struct_ident: &syn::Ident,
 ) -> (TokenStream, TokenStream) {
     let ty = match &relation.relation_type {
         RelationType::HasOne => quote! {corrosion_orm_core::schema::relation::RelationType::HasOne},
@@ -120,6 +136,7 @@ fn generate_relation(
             quote! {corrosion_orm_core::schema::relation::RelationType::BelongsToMany}
         }
     };
+
     let key = &relation.foreign_key;
     let relation_name = &relation.relation_name;
     let field_type = &relation.ty;
@@ -128,12 +145,35 @@ fn generate_relation(
         RelationType::HasMany | RelationType::BelongsTo | RelationType::BelongsToMany => false,
     };
 
+    let check_type = if matches!(
+        relation.relation_type,
+        RelationType::HasMany | RelationType::BelongsToMany
+    ) {
+        extract_vec_inner_type(field_type)
+    } else {
+        field_type.clone()
+    };
+
+    let table_expr_type = if matches!(
+        relation.relation_type,
+        RelationType::HasMany | RelationType::BelongsToMany
+    ) {
+        &check_type
+    } else {
+        field_type
+    };
+
     let table_expr = match &relation.table {
         Some(t) => quote! { String::from(#t) },
         None => {
-            quote! { <#field_type as corrosion_orm_core::schema::table::TableSchema>::get_table_name().to_string() }
+            quote! { <#table_expr_type as corrosion_orm_core::schema::table::TableSchema>::get_table_name().to_string() }
         }
     };
+
+    let trait_name = syn::Ident::new(
+        &format!("MustDeriveModel_{}_{}", struct_ident, relation_index),
+        proc_macro2::Span::call_site(),
+    );
 
     let check = quote! {
         #[diagnostic::on_unimplemented(
@@ -141,12 +181,12 @@ fn generate_relation(
             label = "this type does not derive `Model`",
             note = "add `#[derive(Model)]` to `{Self}`"
         )]
-        trait MustDeriveModel: corrosion_orm_core::schema::table::TableSchema {}
-        impl<T: corrosion_orm_core::schema::table::TableSchema> MustDeriveModel for T {}
+        trait #trait_name: corrosion_orm_core::schema::table::TableSchema {}
+        impl<T: corrosion_orm_core::schema::table::TableSchema> #trait_name for T {}
 
         const _: fn() = || {
-            fn check_relation_target<T: MustDeriveModel>() {}
-            check_relation_target::<#field_type>();
+            fn check_relation_target<T: #trait_name>() {}
+            check_relation_target::<#check_type>();
         };
     };
     let relation = quote! {
@@ -154,14 +194,14 @@ fn generate_relation(
             #ty,
             #table_expr,
             String::from(#key),
-            <#field_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.name,
+            <#check_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.name,
             String::from(#relation_name),
             String::from(#source_table),
             corrosion_orm_core::schema::table::ColumnSchemaModel {
                 name: String::from(#key),
                 is_nullable: false,
                 is_unique: #is_unique,
-                sql_type: <#field_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.ty
+                sql_type: <#check_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.ty
             },
         )
     };

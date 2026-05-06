@@ -29,11 +29,22 @@ pub struct Post {
     #[Column(name = "id")]
     #[PrimaryKey]
     pub id: i32,
-    #[HasOne(foreign_key = "user_id", table = "users")]
-    #[allow(unused)]
+    #[Column(name = "teacher_id")]
+    pub teacher_id: i64,
+    #[BelongsTo(foreign_key = "user_id", table = "users")]
     pub user: User,
 }
 
+#[derive(Model, Default)]
+pub struct Teacher {
+    #[Column(name = "id")]
+    #[PrimaryKey]
+    pub id: i64,
+    #[Column(name = "name")]
+    pub name: String,
+    #[HasMany(foreign_key = "teacher_id", table = "Post")]
+    pub posts: Vec<Post>,
+}
 impl User {
     #[allow(dead_code)]
     pub(crate) fn example() -> Self {
@@ -73,6 +84,19 @@ pub(crate) async fn init_sqlite() -> SqliteDriver {
 
     let mut ctx = QueryContext::from_model(
         Post::get_schema(),
+        driver.acquire_conn().await.unwrap().get_dialect(),
+    );
+
+    driver
+        .acquire_conn()
+        .await
+        .unwrap()
+        .execute_query(&mut ctx)
+        .await
+        .unwrap();
+
+    let mut ctx = QueryContext::from_model(
+        Teacher::get_schema(),
         driver.acquire_conn().await.unwrap().get_dialect(),
     );
 

@@ -1,6 +1,7 @@
 mod delete_test;
 mod find_test;
 mod get_test;
+mod relation_test;
 mod save_test;
 
 #[cfg(test)]
@@ -15,6 +16,7 @@ mod tests {
     async fn test_post_save() -> Result<(), CorrosionOrmError> {
         let post = Post {
             id: 1,
+            teacher_id: 1,
             user: User {
                 id: 1,
                 name: "Test User".to_string(),
