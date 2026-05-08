@@ -220,6 +220,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "corrosion-orm"
+version = "0.1.0"
+dependencies = [
+ "corrosion-orm-core",
+ "corrosion-orm-macros",
+]
+
+[[package]]
 name = "corrosion-orm-core"
 version = "0.1.0"
 dependencies = [
@@ -466,6 +474,13 @@ dependencies = [
  "concurrent-queue",
  "parking",
  "pin-project-lite",
+]
+
+[[package]]
+name = "example1"
+version = "0.1.0"
+dependencies = [
+ "corrosion-orm",
 ]
 
 [[package]]

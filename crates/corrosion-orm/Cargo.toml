@@ -1,0 +1,8 @@
+[package]
+name = "corrosion-orm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+corrosion-orm-core = { path = "../corrosion-orm-core" }
+corrosion-orm-macros = { path = "../corrosion-orm-macros" }
