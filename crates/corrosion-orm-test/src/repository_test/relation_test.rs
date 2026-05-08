@@ -641,7 +641,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_transaction_commit_with_relations() -> Result<(), CorrosionOrmError> {
         let driver = init_sqlite().await;
 
@@ -663,7 +663,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_transaction_rollback_with_relations() -> Result<(), CorrosionOrmError> {
         let driver = init_sqlite().await;
 

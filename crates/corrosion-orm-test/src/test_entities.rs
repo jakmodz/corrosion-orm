@@ -24,7 +24,7 @@ pub struct User {
     pub name: String,
 }
 
-#[derive(Model)]
+#[derive(Model, Clone)]
 pub struct Post {
     #[Column(name = "id")]
     #[PrimaryKey]

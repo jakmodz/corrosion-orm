@@ -143,6 +143,11 @@ mod tests {
         let driver = init_sqlite().await;
         let mut conn = driver.acquire_conn().await?;
         post.save(&mut conn).await?;
+        let saved_post = Post::get_by_id(1, &mut conn).await?.unwrap();
+        assert_eq!(saved_post.id, 1);
+        assert_eq!(saved_post.teacher_id, 1);
+        assert_eq!(saved_post.user.id, 1);
+        assert_eq!(saved_post.user.name, "Test User");
         Ok(())
     }
 

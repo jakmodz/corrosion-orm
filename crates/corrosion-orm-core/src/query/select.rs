@@ -177,7 +177,7 @@ impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
                                 | crate::schema::relation::RelationType::BelongsTo
                         )
                     })
-                    .map(Join::from_relation)
+                    .filter_map(|r| Join::from_relation(r).ok())
                     .collect(),
             ),
         }

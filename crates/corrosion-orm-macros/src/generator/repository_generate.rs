@@ -41,7 +41,8 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
     let mut relation_values_push = Vec::new();
     let mut load_relations_impl = Vec::new();
-    let mut cascade_save_impl = Vec::new();
+    let mut cascade_save_before_impl = Vec::new();
+    let mut cascade_save_after_impl = Vec::new();
     let mut struct_update_impl = Vec::new();
 
     let mut cascade_delete_before_impl = Vec::new();
@@ -59,7 +60,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     values.push(corrosion_orm_core::query::query_type::Value::from(self.#rel_ident.get_id()));
                 });
 
-                cascade_save_impl.push(quote! {
+                cascade_save_before_impl.push(quote! {
                     let #rel_ident = self.#rel_ident.save(db).await?;
                 });
 
@@ -78,10 +79,12 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 });
             }
             RelationType::HasMany | RelationType::BelongsToMany => {
-                cascade_save_impl.push(quote! {
+                cascade_save_after_impl.push(quote! {
                     let mut #rel_ident = Vec::new();
-                    for item in self.#rel_ident.iter() {
-                        #rel_ident.push(item.clone().save(db).await?);
+                    for item in &self.#rel_ident {
+                        let mut __child = (*item).clone();
+                        __child.#fk_column = entity.get_id();
+                        #rel_ident.push(__child.save(db).await?);
                     }
                 });
 
@@ -163,7 +166,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
                 let schema = Self::get_schema();
 
-                #(#cascade_save_impl)*
+                #(#cascade_save_before_impl)*
 
                 let check_query = corrosion_orm_core::query::select::Select::<#mod_name::Column>::from(&schema)
                     .where_clause(
@@ -196,6 +199,8 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
                 let mut saved = db.fetch_optional::<Self>(&mut fetch_ctx).await?;
                 if let Some(ref mut entity) = saved {
+                    #(#cascade_save_after_impl)*
+
                     #(#struct_update_impl)*
                     entity.load_relations(db).await?;
                 }

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use thiserror::Error;
 
 use crate::{
-    schema::relation::{RelationModel, RelationType},
+    schema::relation::RelationModel,
     types::{
         column_type::{SqlType, ToSqlType},
         generation_strategy::GenerationType,
@@ -158,19 +158,21 @@ impl TableSchemaModel {
         Ok(())
     }
     pub(crate) fn get_column_names(&self) -> Vec<&str> {
-        let mut names = Vec::with_capacity(1 + self.fields.len());
+        let mut names = Vec::with_capacity(1 + self.fields.len() + self.relations.len());
         names.push(self.primary_key.name.as_str());
         for field in &self.fields {
             names.push(field.name.as_str());
         }
-        for rel in &self.relations {
-            match rel.relation_type {
-                RelationType::BelongsTo | RelationType::HasOne => {
-                    names.push(rel.foreign_key.as_str());
+        for relation in &self.relations {
+            match relation.relation_type {
+                crate::schema::relation::RelationType::BelongsTo
+                | crate::schema::relation::RelationType::HasOne => {
+                    names.push(relation.foreign_key.as_str());
                 }
                 _ => {}
             }
         }
+
         names
     }
     pub fn get_columns_len(&self) -> usize {

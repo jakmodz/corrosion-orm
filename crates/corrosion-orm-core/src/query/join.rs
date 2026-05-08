@@ -30,7 +30,7 @@ impl<'query> Join<'query> {
             ty,
         }
     }
-    pub fn from_relation(r: &'query RelationModel) -> Join<'query> {
+    pub fn from_relation(r: &'query RelationModel) -> Result<Join<'query>, String> {
         let left = format!("{}.{}", r.source_table, r.foreign_key);
         let right = format!("{}.{}", r.table, r.target_key);
         let ty = match &r.relation_type {
@@ -38,10 +38,10 @@ impl<'query> Join<'query> {
             crate::schema::relation::RelationType::HasMany => crate::query::join::JoinType::Left,
             crate::schema::relation::RelationType::BelongsTo => crate::query::join::JoinType::Inner,
             crate::schema::relation::RelationType::BelongsToMany => {
-                crate::query::join::JoinType::Inner
+                return Err("BelongsToMany relations are not currently supported by from_relation as they require a junction table.".to_string());
             }
         };
-        Join::new(Cow::Borrowed(&r.table), left, right, ty)
+        Ok(Join::new(Cow::Borrowed(&r.table), left, right, ty))
     }
 }
 

@@ -116,7 +116,11 @@ fn parse_fields(
 
     for field in fields.iter_mut() {
         let col_attr: ColumnAttribute = deluxe::extract_attributes(field)?;
-        let field_name = field.ident.as_ref().unwrap().to_string();
+        let field_ident = field
+            .ident
+            .clone()
+            .ok_or_else(|| syn::Error::new(field.span(), "Field must be named"))?;
+        let field_name = field_ident.to_string();
         if field.attrs.iter().any(|a| a.path().is_ident("PrimaryKey")) {
             let pk_attr: PrimaryKeyAttribute = deluxe::extract_attributes(field)?;
             if primary_key.is_some() {
@@ -376,5 +380,23 @@ mod tests {
             .any(|idx| idx.name == "idx_users_email");
         assert!(has_composite);
         assert!(has_email);
+    }
+    #[test]
+    fn field_no_ident() {
+        let mut input: DeriveInput = parse_quote! {
+            struct User(
+                #[Column(name = "id")]
+                #[PrimaryKey]
+                i32
+            );
+        };
+        let result = parse_model(&mut input);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Field must be named")
+        );
     }
 }
