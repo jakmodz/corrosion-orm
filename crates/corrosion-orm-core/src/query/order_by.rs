@@ -42,6 +42,22 @@ impl<C: ColumnTrait> OrderBy<C> {
 }
 
 impl<C: ColumnTrait> ToSql for OrderBy<C> {
+    /// Appends an `ORDER BY` expression for this column and its direction to the query SQL.
+    ///
+    /// The column is rendered qualified into `ctx`, then the direction (`" ASC"` or `" DESC"`) is appended.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::{OrderBy, OrderDirection, QueryContext};
+    ///
+    /// let mut ctx = QueryContext::default();
+    /// // `col` should be a value implementing the column trait used by your crate
+    /// let col = /* construct a column, e.g. `users::id` */ todo!();
+    /// let ob = OrderBy::new(col, OrderDirection::Desc);
+    /// ob.to_sql(&mut ctx, &crate::dialect::DefaultSqlDialect);
+    /// assert!(ctx.sql.ends_with(" DESC"));
+    /// ```
     fn to_sql(&self, ctx: &mut QueryContext, _dialect: &dyn SqlDialect) {
         self.column.as_qualified().render(ctx);
         match self.direction {

@@ -13,10 +13,26 @@ mod tests {
     #[derive(Clone, Copy, Debug)]
     pub struct Col(&'static str);
     impl ColumnTrait for Col {
+        /// Table name for this column.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// let c = Col("id");
+        /// assert_eq!(c.table_name(), "users");
+        /// ```
         fn table_name(&self) -> &'static str {
             "users"
         }
 
+        /// Returns the underlying column name held by the `Col` wrapper.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// let c = Col("status");
+        /// assert_eq!(c.column_name(), "status");
+        /// ```
         fn column_name(&self) -> &'static str {
             self.0
         }
@@ -36,6 +52,27 @@ mod tests {
         assert_eq!(select.get_columns().len(), 2);
         insta::assert_snapshot!(ctx.sql);
     }
+    /// Verifies that a SELECT with a simple equality WHERE clause renders using a table-qualified column.
+    ///
+    /// This test builds a `Select` selecting `id` and `name` from `users` with a `WHERE users.status = 'active'`
+    /// condition and asserts the rendered SQL matches the expected snapshot.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let where_clause = WhereClause {
+    ///     clause: WhereClauseType::Condition(Condition::Eq(
+    ///         Col("status"),
+    ///         Value::String("active".to_string()),
+    ///     )),
+    /// };
+    /// let select = Select::new("users")
+    ///     .add_column("id")
+    ///     .add_column("name")
+    ///     .where_clause(where_clause);
+    /// let sql = render_select(select);
+    /// assert!(sql.contains("WHERE users.status = ?"));
+    /// ```
     #[test]
     fn test_select_with_simple_where() {
         let where_clause = WhereClause {
@@ -65,6 +102,21 @@ mod tests {
         insta::assert_snapshot!(sql, @"SELECT name FROM users WHERE users.age > ? LIMIT 5");
     }
 
+    /// Verifies SQL generation for a SELECT with an `AND` where clause combining `=` and `>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Builds a WHERE (users.status = ? AND users.score > ?) and renders SQL.
+    /// let where_clause = WhereClause {
+    ///     clause: WhereClauseType::And(
+    ///         Box::new(WhereClauseType::Condition(Condition::Eq(Col("status"), Value::String("active".to_string())))),
+    ///         Box::new(WhereClauseType::Condition(Condition::Gt(Col("score"), Value::Int(50))))),
+    /// };
+    /// let select = Select::new("users").add_column("name").where_clause(where_clause);
+    /// let sql = render_select(select);
+    /// assert!(sql.contains("users.status = ? AND users.score > ?"));
+    /// ```
     #[test]
     fn test_select_with_and_condition() {
         let where_clause = WhereClause {
@@ -127,6 +179,26 @@ mod tests {
         insta::assert_snapshot!(sql, @"SELECT id, total FROM orders WHERE users.status IN (?, ?, ?)");
     }
 
+    /// Verifies that a SELECT query with a LIKE condition renders a table-qualified column in SQL.
+    ///
+    /// Builds a `Select` with a `WHERE ... LIKE` clause on the `email` column and asserts the
+    /// generated SQL contains `users.email LIKE ?`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let where_clause = WhereClause {
+    ///     clause: WhereClauseType::Condition(Condition::Like(
+    ///         Col("email"),
+    ///         Value::String("%@gmail.com".to_string()),
+    ///     )),
+    /// };
+    /// let select = Select::new("users")
+    ///     .add_column("name")
+    ///     .where_clause(where_clause);
+    /// let sql = render_select(select);
+    /// assert_eq!(sql, "SELECT name FROM users WHERE users.email LIKE ?");
+    /// ```
     #[test]
     fn test_select_with_like_condition() {
         let where_clause = WhereClause {
@@ -154,6 +226,23 @@ mod tests {
         insta::assert_snapshot!(sql, @"SELECT title FROM posts WHERE users.deleted_at IS NULL");
     }
 
+    /// Ensures a SELECT with a `NOT`-wrapped equality condition renders the expected SQL.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let where_clause = WhereClause {
+    ///     clause: WhereClauseType::Not(Box::new(WhereClauseType::Condition(Condition::Eq(
+    ///         Col("banned"),
+    ///         Value::Bool(true),
+    ///     )))),
+    /// };
+    /// let select = Select::new("users")
+    ///     .add_column("id")
+    ///     .where_clause(where_clause);
+    /// let sql = render_select(select);
+    /// assert_eq!(sql, "SELECT id FROM users WHERE NOT users.banned = ?")
+    /// ```
     #[test]
     fn test_select_with_not_condition() {
         let where_clause = WhereClause {

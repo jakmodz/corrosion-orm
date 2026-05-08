@@ -22,6 +22,21 @@ pub struct Join<'query> {
 }
 
 impl<'query> Join<'query> {
+    /// Constructs a `Join` representing a SQL join against `table` with the given ON expressions and join type.
+    ///
+    /// `table` may be borrowed or owned (`Cow<'query, str>`). `on_left` and `on_right` are the left and right
+    /// expressions used in the join equality (e.g., `"users.id"` and `"posts.user_id"`). `ty` selects the join kind.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::borrow::Cow;
+    /// let j = Join::new(Cow::Borrowed("posts"), "users.id".to_string(), "posts.user_id".to_string(), JoinType::Left);
+    /// assert_eq!(j.table, Cow::Borrowed("posts"));
+    /// assert_eq!(j.on_left, "users.id");
+    /// assert_eq!(j.on_right, "posts.user_id");
+    /// matches!(j.ty, JoinType::Left);
+    /// ```
     pub fn new(table: Cow<'query, str>, on_left: String, on_right: String, ty: JoinType) -> Self {
         Self {
             table,
@@ -30,6 +45,20 @@ impl<'query> Join<'query> {
             ty,
         }
     }
+    /// Create a `Join` derived from a relationship definition.
+    ///
+    /// Constructs a `Join` whose ON expressions and join kind are determined by the
+    /// provided `RelationModel`. Returns `Ok(Join)` for supported relation types:
+    /// - `HasOne` and `HasMany` produce a `LEFT` join.
+    /// - `BelongsTo` produces an `INNER` join.
+    ///
+    /// Returns `Err` if `BelongsToMany` is encountered because many-to-many relations
+    /// require a junction table and are not supported by this constructor.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Join)` with the joined table and ON expressions on success, `Err(String)`
+    /// with an explanatory message for unsupported relation types.
     pub fn from_relation(r: &'query RelationModel) -> Result<Join<'query>, String> {
         let left = format!("{}.{}", r.source_table, r.foreign_key);
         let right = format!("{}.{}", r.table, r.target_key);
@@ -46,6 +75,30 @@ impl<'query> Join<'query> {
 }
 
 impl<'query> ToSql for Join<'query> {
+    /// Appends this join's SQL fragment to the given query context.
+    ///
+    /// This writes an optional join modifier (`LEFT`, `RIGHT`, `FULL`) followed by
+    /// `" JOIN <table> ON <left> = <right>"` into `ctx.sql`. The `_dialect`
+    /// parameter is ignored by this implementation.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::borrow::Cow;
+    ///
+    /// // Construct a join representing: LEFT JOIN users ON posts.user_id = users.id
+    /// let join = Join::new(
+    ///     Cow::Borrowed("users"),
+    ///     "posts.user_id".to_string(),
+    ///     "users.id".to_string(),
+    ///     JoinType::Left,
+    /// );
+    ///
+    /// let mut ctx = QueryContext { sql: String::new() };
+    /// let dialect = /* any SqlDialect implementation */ ();
+    /// join.to_sql(&mut ctx, &dialect);
+    /// assert!(ctx.sql.contains("LEFT JOIN users ON posts.user_id = users.id"));
+    /// ```
     fn to_sql(&self, ctx: &mut QueryContext, _dialect: &dyn SqlDialect) {
         match self.ty {
             JoinType::Inner => {}

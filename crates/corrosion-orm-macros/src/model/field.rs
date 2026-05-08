@@ -34,6 +34,17 @@ pub struct Field {
 impl TryFrom<(ColumnAttribute, &syn::Field)> for Field {
     type Error = syn::Error;
 
+    /// Attempts to convert a `(ColumnAttribute, &syn::Field)` pair into a `Field`.
+    ///
+    /// Returns `Err(syn::Error)` if the provided `syn::Field` has no identifier (i.e., the struct uses unnamed fields).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::convert::TryFrom;
+    /// // assume `attr` is a ColumnAttribute and `syn_field` is a parsed `syn::Field`
+    /// let field = Field::try_from((attr, &syn_field))?;
+    /// ```
     fn try_from((attr, syn_field): (ColumnAttribute, &syn::Field)) -> Result<Self, Self::Error> {
         let field_name = if attr.name.is_empty() {
             syn_field.ident.as_ref().unwrap().to_string()

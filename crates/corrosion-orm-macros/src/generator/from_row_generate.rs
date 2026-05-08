@@ -7,6 +7,23 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Type;
 
+/// Generate a Rust `TokenStream` that implements `sqlx::FromRow` for the provided table struct.
+///
+/// The generated implementation constructs the struct by reading the primary key and each
+/// non-relation field from a SQL row using `row.try_get(...)`, and initializes relation fields
+/// as follows: for `BelongsTo` relations the related entity is default-constructed and its ID
+/// is set from the row's foreign-key column; for other relations the field is set to `Default`.
+///
+/// Parameters:
+/// - `table`: metadata describing the target struct (identifier, primary key, fields, and relations).
+///
+/// # Examples
+///
+/// ```no_run
+/// // Given a `table: TableData` describing a struct, generate the FromRow impl:
+/// let tokens = generate_from_row(&table);
+/// // `tokens` now contains the `impl<'r, R: sqlx::Row> sqlx::FromRow<'r, R> for ...` block.
+/// ```
 pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
     let struct_ident = &table.ident;
 

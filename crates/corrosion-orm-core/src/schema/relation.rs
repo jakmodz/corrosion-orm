@@ -21,6 +21,27 @@ pub struct RelationModel {
 }
 
 impl RelationModel {
+    /// Creates a RelationModel from the provided relation metadata.
+    ///
+    /// The returned model stores the relation kind, related table and key names,
+    /// relation name, the source table, and the associated column schema.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use corrosion_orm_core::schema::{relation::RelationModel, relation::RelationType, table::ColumnSchemaModel};
+    ///
+    /// let field = ColumnSchemaModel::default();
+    /// let rel = RelationModel::new(
+    ///     RelationType::HasOne,
+    ///     "profiles".to_string(),
+    ///     "user_id".to_string(),
+    ///     "id".to_string(),
+    ///     "profile".to_string(),
+    ///     "users".to_string(),
+    ///     field,
+    /// );
+    /// ```
     pub fn new(
         relation_type: RelationType,
         table: String,

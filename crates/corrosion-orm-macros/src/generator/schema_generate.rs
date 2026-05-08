@@ -7,6 +7,28 @@ use corrosion_orm_core::types::generation_strategy::GenerationType;
 use proc_macro2::TokenStream;
 use quote::quote;
 
+/// Extracts the inner type `T` from a `Vec<T>` `syn::Type`, or returns the original type unchanged.
+///
+/// If `ty` is a path type whose last segment is `Vec` with a single generic type argument, this
+/// function returns a clone of that inner type. For any other `syn::Type` it returns a clone of
+/// `ty`.
+///
+/// # Examples
+///
+/// ```
+/// use syn::Type;
+/// use quote::ToTokens;
+///
+/// // Vec inner type is extracted
+/// let vec_ty: Type = syn::parse_str("Vec<i32>").unwrap();
+/// let inner = extract_vec_inner_type(&vec_ty);
+/// assert_eq!(inner.to_token_stream().to_string(), "i32");
+///
+/// // Non-Vec types are returned unchanged (cloned)
+/// let simple_ty: Type = syn::parse_str("String").unwrap();
+/// let same = extract_vec_inner_type(&simple_ty);
+/// assert_eq!(same.to_token_stream().to_string(), "String");
+/// ```
 fn extract_vec_inner_type(ty: &syn::Type) -> syn::Type {
     if let syn::Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -20,6 +42,25 @@ fn extract_vec_inner_type(ty: &syn::Type) -> syn::Type {
     ty.clone()
 }
 
+/// Generate a TokenStream that implements the TableSchema trait for the provided table definition.
+///
+/// # Arguments
+///
+/// * `table` - Definition of a table (name, ident, fields, indexes, primary key and relations) used to build the schema implementation.
+///
+/// # Returns
+///
+/// A `TokenStream` containing an `impl corrosion_orm_core::schema::table::TableSchema` block for the table, plus any compile-time relation checks; the emitted schema includes the table name, fields, indexes, primary key and relations.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Given a `TableData` describing a struct, generate the schema tokens:
+/// // let table: TableData = /* construct or obtain TableData */ ;
+/// let tokens = generate_schema_impl(&table);
+/// let s = tokens.to_string();
+/// assert!(s.contains("impl corrosion_orm_core::schema::table::TableSchema"));
+/// ```
 pub fn generate_schema_impl(table: &TableData) -> TokenStream {
     let mut fields: Vec<TokenStream> = Vec::new();
     for field in table.fields.iter() {
@@ -118,6 +159,24 @@ fn generate_primary_key(primary_key: &PrimaryKeyField) -> TokenStream {
         )
     }
 }
+/// Generates the token streams required for a relation: a compile-time trait check that enforces the related type derives `Model`, and a `RelationModel` construction for the relation.
+///
+/// The first returned token stream declares a helper trait with a custom on-unimplemented diagnostic and a const wrapper that forces a compile-time check that the relation target implements `TableSchema` (i.e., derives `Model`). The second token stream constructs a `corrosion_orm_core::schema::relation::RelationModel` using the relation metadata (relation type, target table expression, foreign key, primary key name of the related table, relation name, source table, and a `ColumnSchemaModel` describing the foreign key column).
+///
+/// Returns a tuple `(check_tokens, relation_tokens)` where `check_tokens` is the compile-time check TokenStream and `relation_tokens` is the RelationModel TokenStream.
+///
+/// # Examples
+///
+/// ```no_run
+/// use proc_macro2::TokenStream;
+/// use syn::Ident;
+///
+/// // `relation_def` should be a valid RelationDefinition value; this example shows calling the function.
+/// // `generate_relation` returns (check_tokens, relation_tokens).
+/// let relation_def = /* obtain or construct a RelationDefinition */ unimplemented!();
+/// let struct_ident = Ident::new("MyStruct", proc_macro2::Span::call_site());
+/// let (check_tokens, relation_tokens): (TokenStream, TokenStream) = generate_relation(&relation_def, "source_table", 0, &struct_ident);
+/// ```
 fn generate_relation(
     relation: &RelationDefinition,
     source_table: &str,

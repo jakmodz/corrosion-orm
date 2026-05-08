@@ -83,6 +83,23 @@ pub struct PrimaryKeyModel {
     pub ty: SqlType,
 }
 impl TableSchemaModel {
+    /// Creates a new table schema model with the given name and empty/default components.
+    ///
+    /// The resulting model has no fields, indexes, or relations. The primary key is initialized
+    /// with an empty name, `generation_type` set to `None`, and type `SqlType::Integer`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let model = TableSchemaModel::new("users".to_string());
+    /// assert_eq!(model.name, "users");
+    /// assert!(model.fields.is_empty());
+    /// assert!(model.indexes.is_empty());
+    /// assert!(model.relations.is_empty());
+    /// assert_eq!(model.primary_key.name, "");
+    /// assert!(model.primary_key.generation_type.is_none());
+    /// assert_eq!(model.primary_key.ty, SqlType::Integer);
+    /// ```
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -106,6 +123,27 @@ impl TableSchemaModel {
         });
         self
     }
+    /// Validates the table schema and returns an error if any schema rule is violated.
+    ///
+    /// This checks:
+    /// - the table name is not empty,
+    /// - the primary key type is not `Boolean`, `Float`, or `Double`,
+    /// - `GenerationType::AutoIncrement` is only used with `SqlType::Integer`,
+    /// - every column name is not empty and unique (column names are checked against the primary key name).
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if all validations pass; an appropriate `SchemaValidationError` variant otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut m = TableSchemaModel::new("users".into());
+    /// // default primary key name is empty; ensure a valid pk name to pass validation in this example
+    /// m.primary_key.name = "id".into();
+    /// m.column("name".into());
+    /// assert!(m.validate().is_ok());
+    /// ```
     pub(crate) fn validate(&self) -> Result<(), SchemaValidationError> {
         if self.name.is_empty() {
             return Err(SchemaValidationError::EmptyTableName);
@@ -157,6 +195,18 @@ impl TableSchemaModel {
         }
         Ok(())
     }
+    /// Collects the table's column names: the primary key, all defined fields, and foreign-key columns from `BelongsTo` and `HasOne` relations.
+    ///
+    /// The returned vector preserves order: primary key first, then fields in insertion order, then matching relation foreign keys.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut t = TableSchemaModel::new("users".into());
+    /// t.column("name".into());
+    /// let names = t.get_column_names();
+    /// assert_eq!(names, vec!["", "name"]);
+    /// ```
     pub(crate) fn get_column_names(&self) -> Vec<&str> {
         let mut names = Vec::with_capacity(1 + self.fields.len() + self.relations.len());
         names.push(self.primary_key.name.as_str());
@@ -175,6 +225,20 @@ impl TableSchemaModel {
 
         names
     }
+    /// Number of columns in the table schema, counting the primary key plus all defined fields.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut schema = TableSchemaModel::new("users".to_string());
+    /// schema.column("name".to_string());
+    /// schema.column("email".to_string());
+    /// assert_eq!(schema.get_columns_len(), 3);
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// The total count of columns (primary key + fields).
     pub fn get_columns_len(&self) -> usize {
         1 + self.fields.len()
     }

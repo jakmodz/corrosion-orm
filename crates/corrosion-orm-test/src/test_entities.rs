@@ -7,6 +7,19 @@ impl SqlDialect for MockSqliteDialect {
         String::new()
     }
 
+    /// Provide the SQLite bind-parameter placeholder used in prepared statements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let dialect = MockSqliteDialect;
+    /// let placeholder = dialect.bind_param(&0);
+    /// assert_eq!(placeholder, "?");
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// The string `"?"` representing the SQLite parameter placeholder.
     fn bind_param(&self, _count: &usize) -> String {
         "?".to_string()
     }
@@ -46,6 +59,17 @@ pub struct Teacher {
     pub posts: Vec<Post>,
 }
 impl User {
+    /// Creates an example `User` populated with sample values.
+    ///
+    /// The returned value has `id = 1` and `name = "Bob"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let u = User::example();
+    /// assert_eq!(u.id, 1);
+    /// assert_eq!(u.name, "Bob");
+    /// ```
     #[allow(dead_code)]
     pub(crate) fn example() -> Self {
         Self {
@@ -54,6 +78,25 @@ impl User {
         }
     }
 }
+/// Initializes an in-memory SQLite driver and creates tables for the test models.
+///
+/// The function configures logging for tests, constructs an in-memory SQLite configuration,
+/// creates a `SqliteDriver`, and executes the schema creation queries for `User`, `Post`,
+/// and `Teacher`.
+///
+/// # Examples
+///
+/// ```
+/// #[tokio::test]
+/// async fn init_sqlite_example() {
+///     let _driver = init_sqlite().await;
+/// }
+/// ```
+///
+/// # Returns
+///
+/// An initialized `SqliteDriver` connected to an in-memory database with schemas for
+/// `User`, `Post`, and `Teacher` created.
 #[allow(dead_code)]
 pub(crate) async fn init_sqlite() -> SqliteDriver {
     use corrosion_orm_core::SqliteDriver;

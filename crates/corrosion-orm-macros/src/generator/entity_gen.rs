@@ -40,7 +40,25 @@ fn sql_type_to_wrapper(sql_type: &SqlType) -> proc_macro2::TokenStream {
     }
 }
 
-/// Gets SqlType from a Rust type by looking at its AST name
+/// Map a Rust AST type to the corresponding `SqlType`.
+///
+/// This inspects the provided `syn::Type` and returns a best-effort `SqlType`:
+/// - If the type is `Option<T>`, the mapping is performed on `T`.
+/// - Common Rust types are mapped to their expected SQL equivalents (e.g. `String` → string type, `i32`/`f64`/`bool` → numeric/boolean types, `NaiveDate`/`NaiveDateTime` → date/timestamp).
+/// - An unrecognized type path identifier yields `SqlType::Custom(<identifier>)`.
+/// - Non-path types or missing identifiers yield `SqlType::Custom("Unknown".to_string())`.
+///
+/// # Examples
+///
+/// ```
+/// use syn::Type;
+///
+/// let t = syn::parse_str::<Type>("i32").unwrap();
+/// assert_eq!(super::get_sql_type_from_rust_type(&t), i32::default().to_sql_type());
+///
+/// let opt_t = syn::parse_str::<Type>("Option<String>").unwrap();
+/// assert_eq!(super::get_sql_type_from_rust_type(&opt_t), String::default().to_sql_type());
+/// ```
 fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
     match ty {
         syn::Type::Path(type_path) => {
@@ -78,6 +96,23 @@ fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
     }
 }
 
+/// Generates a Rust module (as a TokenStream) that defines a typed column enum and a `Columns` value for an entity.
+///
+/// The generated module is named from `table.ident` (lowercased) and contains:
+/// - A `Column` enum with one variant per column (derived `Debug, Clone, Copy, PartialEq, Eq`).
+/// - An implementation of `corrosion_orm_core::types::ColumnTrait` for `Column` that returns the table name
+///   (via the entity struct's `TableSchema::get_table_name`) and the column name for each variant.
+/// - A `Columns` struct with a field for each column, typed as the appropriate column wrapper (e.g., `StringColumn`, `NumericColumn`, etc.)
+///   and a `pub const COLUMN: Columns` initializer that constructs each wrapper with the corresponding `Column` variant.
+/// If the table has no columns, an empty `Column` enum and an empty `Columns` struct with a `COLUMN` value are generated.
+///
+/// # Parameters
+///
+/// table — Source `TableData` describing the entity name (`ident`), the primary key (`primary_key`) and other fields (`fields`).
+///
+/// # Returns
+///
+/// A `proc_macro2::TokenStream` containing the generated module definition for the entity.
 pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
     let module_ident = syn::Ident::new(
         &table.ident.to_string().to_lowercase(),

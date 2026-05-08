@@ -3,7 +3,23 @@ use corrosion_orm_core::schema::relation::RelationType;
 use quote::quote;
 use syn::Type;
 
-/// Helper function to extract the inner type `T` from a `Vec<T>`
+/// Extracts the element type `T` when given a `Vec<T>` type path.
+///
+/// Returns `None` if the provided type is not a `Vec` path or the `Vec` has no first generic type argument.
+///
+/// # Examples
+///
+/// ```
+/// use syn::Type;
+///
+/// let ty: Type = syn::parse_str("Vec<i32>").unwrap();
+/// let inner = crate::extract_vec_inner_type(&ty).expect("should extract inner type");
+/// if let Type::Path(tp) = inner {
+///     assert_eq!(tp.path.segments.last().unwrap().ident, "i32");
+/// } else {
+///     panic!("expected a Type::Path for the inner type");
+/// }
+/// ```
 fn extract_vec_inner_type(ty: &Type) -> Option<&Type> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -16,7 +32,19 @@ fn extract_vec_inner_type(ty: &Type) -> Option<&Type> {
     None
 }
 
-/// Helper function to extract the exact Ident (Name) from a Type
+/// Extracts the identifier of the last path segment when `ty` is a path type.
+///
+/// # Returns
+/// `Some(Ident)` if `ty` is a `Type::Path` and the last path segment has an identifier, `None` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// use syn::{Type, parse_quote};
+/// let ty: Type = parse_quote!(std::collections::HashMap<String, i32>);
+/// let ident = extract_type_ident(&ty).unwrap();
+/// assert_eq!(ident.to_string(), "HashMap");
+/// ```
 fn extract_type_ident(ty: &Type) -> Option<syn::Ident> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -26,6 +54,22 @@ fn extract_type_ident(ty: &Type) -> Option<syn::Ident> {
     None
 }
 
+/// Generates the repository implementation TokenStream for the given table metadata.
+///
+/// The produced tokens implement instance helpers (value extraction, id accessors, relation loading)
+/// and the `Repo` trait for the entity, including relation-aware cascaded save/delete logic,
+/// queries (`save`, `get_all`, `get_by_id`, `delete`) and a `find` helper. Relation handling
+/// includes generating code to load associated entities, cascade saves before/after persisting,
+/// and cascade deletes where appropriate.
+///
+/// # Examples
+///
+/// ```ignore
+/// // Given a `TableData` describing an entity, generate the repository implementation tokens:
+/// let tokens = generate_repository(&table_data);
+/// // Tokens can be inspected or emitted by a procedural macro.
+/// assert!(!tokens.to_string().is_empty());
+/// ```
 pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream {
     let ident = &table.ident;
     let primary_key_ty = &table.primary_key.ty;

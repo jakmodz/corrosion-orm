@@ -154,6 +154,26 @@ pub enum Condition<C: ColumnTrait> {
 }
 
 impl<C: ColumnTrait> ToSql for Condition<C> {
+    /// Render this condition as a SQL expression into the given query context.
+    ///
+    /// The method writes SQL text into `ctx.sql` and pushes any parameter values
+    /// into the context as bind parameters using the provided SQL dialect. Column
+    /// references are rendered as qualified identifiers when applicable.
+    ///
+    /// # Parameters
+    ///
+    /// - `ctx`: Target query context receiving SQL text and bind parameters.
+    /// - `dialect`: SQL dialect used when formatting bind parameters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut ctx = QueryContext::default();
+    /// let dialect = DefaultSqlDialect::default();
+    /// let cond = Condition::Eq(column("id"), Value::from(42));
+    /// cond.to_sql(&mut ctx, &dialect);
+    /// assert!(ctx.sql.contains("id ="));
+    /// ```
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         macro_rules! binary_op {
             ($col:expr, $val:expr, $op:expr) => {{
@@ -196,6 +216,16 @@ macro_rules! condition_impl {
     };
 }
 impl<C: ColumnTrait> Condition<C> {
+    /// Render a column membership predicate ("IN"/"NOT IN") by emitting the qualified column,
+    /// the operator, and a parenthesized, comma-separated list of bound values.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use crate::{QueryContext, SqlDialect, Value, render_list_op};
+    /// # // Assume `ctx`, `dialect`, `col`, and `vals` are available here.
+    /// // render_list_op(&self, &mut ctx, dialect, &col, " IN ", &vals);
+    /// ```
     fn render_list_op(
         &self,
         ctx: &mut QueryContext,

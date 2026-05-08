@@ -9,6 +9,22 @@ pub enum ColumnRef {
 }
 
 impl ColumnRef {
+    /// Appends this column reference's SQL text to the provided query context's SQL buffer.
+    ///
+    /// - `Bare(column)` appends the column name.
+    /// - `Qualified(table, column)` appends `table.column`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let mut ctx = QueryContext { sql: String::new() };
+    /// ColumnRef::Bare("id").render(&mut ctx);
+    /// assert_eq!(ctx.sql, "id");
+    ///
+    /// let mut ctx = QueryContext { sql: String::new() };
+    /// ColumnRef::Qualified("users", "id").render(&mut ctx);
+    /// assert_eq!(ctx.sql, "users.id");
+    /// ```
     pub fn render(&self, ctx: &mut QueryContext) {
         match self {
             ColumnRef::Bare(col) => {
