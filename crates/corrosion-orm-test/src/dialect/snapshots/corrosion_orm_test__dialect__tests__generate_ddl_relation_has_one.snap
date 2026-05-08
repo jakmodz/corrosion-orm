@@ -1,0 +1,11 @@
+---
+source: crates/corrosion-orm-test/src/dialect/mod.rs
+assertion_line: 27
+expression: ddl
+---
+CREATE TABLE Post (
+    id INTEGER PRIMARY KEY,
+    teacher_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);

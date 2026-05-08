@@ -40,7 +40,25 @@ fn sql_type_to_wrapper(sql_type: &SqlType) -> proc_macro2::TokenStream {
     }
 }
 
-/// Gets SqlType from a Rust type by looking at its AST name
+/// Map a Rust AST type to the corresponding `SqlType`.
+///
+/// This inspects the provided `syn::Type` and returns a best-effort `SqlType`:
+/// - If the type is `Option<T>`, the mapping is performed on `T`.
+/// - Common Rust types are mapped to their expected SQL equivalents (e.g. `String` → string type, `i32`/`f64`/`bool` → numeric/boolean types, `NaiveDate`/`NaiveDateTime` → date/timestamp).
+/// - An unrecognized type path identifier yields `SqlType::Custom(<identifier>)`.
+/// - Non-path types or missing identifiers yield `SqlType::Custom("Unknown".to_string())`.
+///
+/// # Examples
+///
+/// ```ignore
+/// use syn::Type;
+///
+/// let t = syn::parse_str::<Type>("i32").unwrap();
+/// assert_eq!(get_sql_type_from_rust_type(&t), i32::default().to_sql_type());
+///
+/// let opt_t = syn::parse_str::<Type>("Option<String>").unwrap();
+/// assert_eq!(get_sql_type_from_rust_type(&opt_t), String::default().to_sql_type());
+/// ```
 fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
     match ty {
         syn::Type::Path(type_path) => {
@@ -78,11 +96,29 @@ fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
     }
 }
 
+/// Generates a Rust module (as a TokenStream) that defines a typed column enum and a `Columns` value for an entity.
+///
+/// The generated module is named from `table.ident` (lowercased) and contains:
+/// - A `Column` enum with one variant per column (derived `Debug, Clone, Copy, PartialEq, Eq`).
+/// - An implementation of `corrosion_orm_core::types::ColumnTrait` for `Column` that returns the table name
+///   (via the entity struct's `TableSchema::get_table_name`) and the column name for each variant.
+/// - A `Columns` struct with a field for each column, typed as the appropriate column wrapper (e.g., `StringColumn`, `NumericColumn`, etc.)
+///   and a `pub const COLUMN: Columns` initializer that constructs each wrapper with the corresponding `Column` variant.
+///   If the table has no columns, an empty `Column` enum and an empty `Columns` struct with a `COLUMN` value are generated.
+///
+/// # Parameters
+///
+/// table — Source `TableData` describing the entity name (`ident`), the primary key (`primary_key`) and other fields (`fields`).
+///
+/// # Returns
+///
+/// A `proc_macro2::TokenStream` containing the generated module definition for the entity.
 pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
-    let ident = syn::Ident::new(
+    let module_ident = syn::Ident::new(
         &table.ident.to_string().to_lowercase(),
         proc_macro2::Span::call_site(),
     );
+    let struct_ident = &table.ident;
 
     let mut column_defs = Vec::new();
     let primary_key_field = &table.primary_key;
@@ -98,7 +134,7 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
     for field in &table.fields {
         let field_name_lower =
             syn::Ident::new(&field.name.to_lowercase(), proc_macro2::Span::call_site());
-        let column_name = &field.name; // <- here we define a new `column_name` for each field
+        let column_name = &field.name;
 
         let sql_type = get_sql_type_from_rust_type(&field.ty);
         let wrapper_type = sql_type_to_wrapper(&sql_type);
@@ -146,21 +182,28 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
             .iter()
             .map(|(_, column_name, _)| column_name)
             .collect::<Vec<_>>();
-        let columns_enum_def = quote! {
-            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-            #[allow(non_camel_case_types)]
-            pub enum Column {
-                #(#variants),*
-            }
 
-            impl corrosion_orm_core::types::ColumnTrait for Column {
-                fn as_str(&self) -> &'static str {
-                    match self {
-                        #(Self::#variants => #column_names),*
+        let columns_enum_def = quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                #[allow(non_camel_case_types)]
+                pub enum Column {
+                    #(#variants),*
+                }
+
+                impl corrosion_orm_core::types::ColumnTrait for Column {
+                    fn table_name(&self) -> &'static str {
+
+                        <super::#struct_ident as corrosion_orm_core::schema::table::TableSchema>::get_table_name()
+                    }
+
+                    fn column_name(&self) -> &'static str {
+                        match self {
+                            #(Self::#variants => #column_names),*
+                        }
                     }
                 }
-            }
         };
+
         columns_enum_def
     } else {
         quote! {
@@ -171,7 +214,7 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
     };
 
     quote! {
-        pub mod #ident {
+        pub mod #module_ident {
             #column_enum_def
             #columns_struct
         }

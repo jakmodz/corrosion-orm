@@ -154,10 +154,45 @@ pub enum Condition<C: ColumnTrait> {
 }
 
 impl<C: ColumnTrait> ToSql for Condition<C> {
+    /// Render this condition as a SQL expression into the given query context.
+    ///
+    /// The method writes SQL text into `ctx.sql` and pushes any parameter values
+    /// into the context as bind parameters using the provided SQL dialect. Column
+    /// references are rendered as qualified identifiers when applicable.
+    ///
+    /// # Parameters
+    ///
+    /// - `ctx`: Target query context receiving SQL text and bind parameters.
+    /// - `dialect`: SQL dialect used when formatting bind parameters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corrosion_orm_core::prelude::*;
+    /// use corrosion_orm_core::query::where_clause::Condition;
+    /// # use corrosion_orm_core::types::column_trait::ColumnTrait;
+    /// # use corrosion_orm_core::types::column_ref::ColumnRef;
+    /// # #[derive(Debug, Clone, Copy, PartialEq)]
+    /// # struct MockColumn;
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    ///
+    /// let mut ctx = QueryContext::default();
+    /// # #[cfg(feature = "sqlite")]
+    /// # {
+    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
+    /// let dialect = SqliteDialect;
+    /// let cond = Condition::Eq(MockColumn, Value::from(42));
+    /// cond.to_sql(&mut ctx, &dialect);
+    /// assert!(ctx.sql.contains("id ="));
+    /// # }
+    /// ```
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         macro_rules! binary_op {
             ($col:expr, $val:expr, $op:expr) => {{
-                ctx.sql.push_str($col.as_str());
+                $col.as_qualified().render(ctx);
                 ctx.sql.push_str($op);
                 ctx.push_bind_param($val.clone(), dialect);
             }};
@@ -173,15 +208,13 @@ impl<C: ColumnTrait> ToSql for Condition<C> {
             Condition::Like(c, v) => binary_op!(c, v, " LIKE "),
             Condition::NotLike(c, v) => binary_op!(c, v, " NOT LIKE "),
             Condition::IsNull(c) => {
-                ctx.sql.push_str(c.as_str());
+                c.as_qualified().render(ctx);
                 ctx.sql.push_str(" IS NULL");
             }
-            Condition::In(c, vals) => self.render_list_op(ctx, dialect, c.as_str(), " IN ", vals),
-            Condition::NotIn(c, vals) => {
-                self.render_list_op(ctx, dialect, c.as_str(), " NOT IN ", vals)
-            }
+            Condition::In(c, vals) => self.render_list_op(ctx, dialect, c, " IN ", vals),
+            Condition::NotIn(c, vals) => self.render_list_op(ctx, dialect, c, " NOT IN ", vals),
             Condition::Between(c, min, max) => {
-                ctx.sql.push_str(c.as_str());
+                c.as_qualified().render(ctx);
                 ctx.sql.push_str(" BETWEEN ");
                 ctx.push_bind_param(min.clone(), dialect);
                 ctx.sql.push_str(" AND ");
@@ -198,15 +231,24 @@ macro_rules! condition_impl {
     };
 }
 impl<C: ColumnTrait> Condition<C> {
+    /// Render a column membership predicate ("IN"/"NOT IN") by emitting the qualified column,
+    /// the operator, and a parenthesized, comma-separated list of bound values.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Example of internal usage:
+    /// // cond.render_list_op(&mut ctx, dialect, &col, " IN ", &vals);
+    /// ```
     fn render_list_op(
         &self,
         ctx: &mut QueryContext,
         dialect: &dyn SqlDialect,
-        col: &str,
+        col: &C,
         op: &str,
         vals: &[Value],
     ) {
-        ctx.sql.push_str(col);
+        col.as_qualified().render(ctx);
         ctx.sql.push_str(op);
         ctx.sql.push('(');
         for (i, v) in vals.iter().enumerate() {

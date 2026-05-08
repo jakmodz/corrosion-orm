@@ -13,23 +13,20 @@ use std::borrow::Cow;
 ///
 /// ```
 /// use corrosion_orm_core::query::delete::Delete;
+/// use corrosion_orm_core::query::where_clause::WhereClause;
+/// use corrosion_orm_core::types::ColumnTrait;
 ///
 /// #[derive(Clone, Copy)]
-/// pub enum UserColumn {
-///     Id,
-///     Name,
-/// }
-///
-/// impl corrosion_orm_core::types::ColumnTrait for UserColumn {
-///     fn as_str(&self) -> &'static str {
-///         match self {
-///             Self::Id => "id",
-///             Self::Name => "name",
-///         }
+/// enum UserColumn { Id }
+/// impl ColumnTrait for UserColumn {
+///     fn table_name(&self) -> &'static str { "users" }
+///     fn column_name(&self) -> &'static str {
+///         match self { Self::Id => "id" }
 ///     }
 /// }
 ///
-/// let delete = Delete::<UserColumn>::new("users");
+/// let query = Delete::<UserColumn>::new("users")
+///     .where_clause(WhereClause::eq(UserColumn::Id, 1));
 /// ```
 pub struct Delete<'query, C: ColumnTrait> {
     table: Cow<'query, str>,

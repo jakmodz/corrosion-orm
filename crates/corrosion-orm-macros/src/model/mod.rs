@@ -2,6 +2,7 @@ pub mod field;
 pub mod index;
 mod parser;
 pub mod primary_key;
+pub mod relation;
 pub mod table;
 pub use field::{ColumnAttribute, Field};
 pub use index::{IndexAttribute, IndexDefinition};

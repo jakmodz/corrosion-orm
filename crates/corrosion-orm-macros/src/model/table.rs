@@ -1,6 +1,8 @@
 use deluxe::ExtractAttributes;
 
-use crate::model::{Field, IndexDefinition, primary_key::PrimaryKeyField};
+use crate::model::{
+    Field, IndexDefinition, primary_key::PrimaryKeyField, relation::RelationDefinition,
+};
 
 #[derive(ExtractAttributes)]
 #[deluxe(attributes(Table))]
@@ -16,4 +18,5 @@ pub struct TableData {
     pub fields: Vec<Field>,
     pub primary_key: PrimaryKeyField,
     pub indexes: Vec<IndexDefinition>,
+    pub relations: Vec<RelationDefinition>,
 }

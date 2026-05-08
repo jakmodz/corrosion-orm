@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::{init_sqlite, test_entities::User};
+    use crate::{
+        Post, init_sqlite,
+        test_entities::{Teacher, User},
+    };
     use corrosion_orm_core::prelude::*;
 
     #[tokio::test]
@@ -125,6 +128,53 @@ mod tests {
         assert_eq!(result1?.unwrap().name, "Alice");
         assert_eq!(result2?.unwrap().name, "Bob");
         assert_eq!(result3?.unwrap().name, "Charlie");
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_save_cascade_has_one() -> Result<(), CorrosionOrmError> {
+        let post = Post {
+            id: 1,
+            teacher_id: 1,
+            user: User {
+                id: 1,
+                name: "Test User".to_string(),
+            },
+        };
+        let driver = init_sqlite().await;
+        let mut conn = driver.acquire_conn().await?;
+        post.save(&mut conn).await?;
+        let saved_post = Post::get_by_id(1, &mut conn).await?.unwrap();
+        assert_eq!(saved_post.id, 1);
+        assert_eq!(saved_post.teacher_id, 1);
+        assert_eq!(saved_post.user.id, 1);
+        assert_eq!(saved_post.user.name, "Test User");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_save_cascade_has_many() -> Result<(), CorrosionOrmError> {
+        let mut posts = Vec::new();
+        for i in 0..5 {
+            posts.push(Post {
+                id: i,
+                teacher_id: 1,
+                user: User {
+                    id: i,
+                    name: format!("Test User {}", i),
+                },
+            });
+        }
+        let teacher = Teacher {
+            id: 1,
+            name: "Test Teacher".to_string(),
+            posts,
+        };
+
+        let driver = init_sqlite().await;
+        let mut conn = driver.acquire_conn().await?;
+        teacher.save(&mut conn).await?;
+        let saved_teacher = Teacher::get_by_id(1, &mut conn).await?;
+        assert_eq!(saved_teacher.unwrap().posts.len(), 5);
         Ok(())
     }
 }

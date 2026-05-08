@@ -2,9 +2,12 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::types::{
-    column_type::{SqlType, ToSqlType},
-    generation_strategy::GenerationType,
+use crate::{
+    schema::relation::RelationModel,
+    types::{
+        column_type::{SqlType, ToSqlType},
+        generation_strategy::GenerationType,
+    },
 };
 
 /// **Validation of primary keys like no primary in table or multiple of them is handled in parsing IR of table**
@@ -47,8 +50,11 @@ pub struct TableSchemaModel {
     pub indexes: Vec<IndexModel>,
     /// Primary key of the table
     pub primary_key: PrimaryKeyModel,
+    /// Relations of the table
+    pub relations: Vec<RelationModel>,
 }
 /// Struct representing the column schema model
+#[derive(Debug, Clone)]
 pub struct ColumnSchemaModel {
     /// Name of the column
     pub name: String,
@@ -77,6 +83,26 @@ pub struct PrimaryKeyModel {
     pub ty: SqlType,
 }
 impl TableSchemaModel {
+    /// Creates a new table schema model with the given name and empty/default components.
+    ///
+    /// The resulting model has no fields, indexes, or relations. The primary key is initialized
+    /// with an empty name, `generation_type` set to `None`, and type `SqlType::Integer`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corrosion_orm_core::schema::table::TableSchemaModel;
+    /// use corrosion_orm_core::types::column_type::SqlType;
+    ///
+    /// let model = TableSchemaModel::new("users".to_string());
+    /// assert_eq!(model.name, "users");
+    /// assert!(model.fields.is_empty());
+    /// assert!(model.indexes.is_empty());
+    /// assert!(model.relations.is_empty());
+    /// assert_eq!(model.primary_key.name, "");
+    /// assert!(model.primary_key.generation_type.is_none());
+    /// assert_eq!(model.primary_key.ty, SqlType::Integer);
+    /// ```
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -87,6 +113,7 @@ impl TableSchemaModel {
                 generation_type: None,
                 ty: SqlType::Integer,
             },
+            relations: Vec::new(),
         }
     }
 
@@ -99,7 +126,30 @@ impl TableSchemaModel {
         });
         self
     }
-    pub(crate) fn validate(&self) -> Result<(), SchemaValidationError> {
+    /// Validates the table schema and returns an error if any schema rule is violated.
+    ///
+    /// This checks:
+    /// - the table name is not empty,
+    /// - the primary key type is not `Boolean`, `Float`, or `Double`,
+    /// - `GenerationType::AutoIncrement` is only used with `SqlType::Integer`,
+    /// - every column name is not empty and unique (column names are checked against the primary key name).
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if all validations pass; an appropriate `SchemaValidationError` variant otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corrosion_orm_core::schema::table::TableSchemaModel;
+    ///
+    /// let mut m = TableSchemaModel::new("users".into());
+    /// // default primary key name is empty; ensure a valid pk name to pass validation in this example
+    /// m.primary_key.name = "id".into();
+    /// m.column("name".into());
+    /// assert!(m.validate().is_ok());
+    /// ```
+    pub fn validate(&self) -> Result<(), SchemaValidationError> {
         if self.name.is_empty() {
             return Err(SchemaValidationError::EmptyTableName);
         }
@@ -150,14 +200,54 @@ impl TableSchemaModel {
         }
         Ok(())
     }
-    pub(crate) fn get_column_names(&self) -> Vec<&str> {
-        let mut names = Vec::with_capacity(1 + self.fields.len());
+    /// Collects the table's column names: the primary key, all defined fields, and foreign-key columns from `BelongsTo` and `HasOne` relations.
+    ///
+    /// The returned vector preserves order: primary key first, then fields in insertion order, then matching relation foreign keys.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corrosion_orm_core::schema::table::TableSchemaModel;
+    ///
+    /// let mut t = TableSchemaModel::new("users".into());
+    /// t.column("name".into());
+    /// let names = t.get_column_names();
+    /// assert_eq!(names, vec!["", "name"]);
+    /// ```
+    pub fn get_column_names(&self) -> Vec<&str> {
+        let mut names = Vec::with_capacity(1 + self.fields.len() + self.relations.len());
         names.push(self.primary_key.name.as_str());
         for field in &self.fields {
             names.push(field.name.as_str());
         }
+        for relation in &self.relations {
+            match relation.relation_type {
+                crate::schema::relation::RelationType::BelongsTo
+                | crate::schema::relation::RelationType::HasOne => {
+                    names.push(relation.foreign_key.as_str());
+                }
+                _ => {}
+            }
+        }
+
         names
     }
+    /// Number of columns in the table schema, counting the primary key plus all defined fields.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corrosion_orm_core::schema::table::TableSchemaModel;
+    ///
+    /// let mut schema = TableSchemaModel::new("users".to_string());
+    /// schema.column("name".to_string());
+    /// schema.column("email".to_string());
+    /// assert_eq!(schema.get_columns_len(), 3);
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// The total count of columns (primary key + fields).
     pub fn get_columns_len(&self) -> usize {
         1 + self.fields.len()
     }

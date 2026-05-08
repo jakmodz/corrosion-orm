@@ -18,14 +18,33 @@ pub struct PrimaryKeyField {
     pub generation_strategy: Option<GenerationType>,
 }
 
-impl From<(ColumnAttribute, PrimaryKeyAttribute, &syn::Field)> for PrimaryKeyField {
+impl From<(&ColumnAttribute, PrimaryKeyAttribute, &syn::Field)> for PrimaryKeyField {
+    /// Construct a PrimaryKeyField from a ColumnAttribute, PrimaryKeyAttribute, and a syn::Field.
+    ///
+    /// The resulting PrimaryKeyField uses the column attribute's name if present; otherwise it uses
+    /// the syn field's identifier. The field's type and identifier are copied from the syn::Field,
+    /// and the primary key generation strategy is taken from the PrimaryKeyAttribute.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use crate::model::primary_key::PrimaryKeyField;
+    /// use crate::model::field::ColumnAttribute;
+    /// use corrosion_orm_macros::PrimaryKeyAttribute;
+    /// use syn::parse_quote;
+    ///
+    /// let col_attr = ColumnAttribute { name: String::new(), ..Default::default() };
+    /// let pk_attr = PrimaryKeyAttribute { generation_strategy: None };
+    /// let syn_field: syn::Field = parse_quote!(pub id: i32);
+    /// let pk_field = PrimaryKeyField::from((&col_attr, pk_attr, &syn_field));
+    /// ```
     fn from(
-        (col_attr, pk_attr, syn_field): (ColumnAttribute, PrimaryKeyAttribute, &syn::Field),
+        (col_attr, pk_attr, syn_field): (&ColumnAttribute, PrimaryKeyAttribute, &syn::Field),
     ) -> Self {
         let field_name = if col_attr.name.is_empty() {
             syn_field.ident.as_ref().unwrap().to_string()
         } else {
-            col_attr.name
+            col_attr.name.clone()
         };
         PrimaryKeyField {
             iden: syn_field.ident.clone().unwrap(),

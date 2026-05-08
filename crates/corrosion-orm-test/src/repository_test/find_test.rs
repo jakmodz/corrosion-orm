@@ -213,6 +213,7 @@ mod tests {
         Ok(())
     }
     #[derive(Model)]
+    #[Table(name = "date_posts")]
     struct Post {
         #[PrimaryKey]
         id: i32,

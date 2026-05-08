@@ -42,8 +42,36 @@ impl<C: ColumnTrait> OrderBy<C> {
 }
 
 impl<C: ColumnTrait> ToSql for OrderBy<C> {
+    /// Appends an `ORDER BY` expression for this column and its direction to the query SQL.
+    ///
+    /// The column is rendered qualified into `ctx`, then the direction (`" ASC"` or `" DESC"`) is appended.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corrosion_orm_core::prelude::*;
+    /// use corrosion_orm_core::query::order_by::{OrderBy, OrderDirection};
+    /// # use corrosion_orm_core::types::column_trait::ColumnTrait;
+    /// # use corrosion_orm_core::types::column_ref::ColumnRef;
+    /// # #[derive(Debug, Clone, Copy)]
+    /// # struct MockColumn;
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    ///
+    /// let mut ctx = QueryContext::default();
+    /// let col = MockColumn;
+    /// let ob = OrderBy::new(col, OrderDirection::Desc);
+    /// # #[cfg(feature = "sqlite")]
+    /// # {
+    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
+    /// ob.to_sql(&mut ctx, &SqliteDialect);
+    /// assert!(ctx.sql.ends_with(" DESC"));
+    /// # }
+    /// ```
     fn to_sql(&self, ctx: &mut QueryContext, _dialect: &dyn SqlDialect) {
-        ctx.sql.push_str(self.column.as_str());
+        self.column.as_qualified().render(ctx);
         match self.direction {
             OrderDirection::Asc => ctx.sql.push_str(" ASC"),
             OrderDirection::Desc => ctx.sql.push_str(" DESC"),

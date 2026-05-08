@@ -1,13 +1,38 @@
 use crate::model::{
     ColumnAttribute, Field, IndexAttribute, IndexDefinition, TableAttribute, TableData,
     primary_key::{PrimaryKeyAttribute, PrimaryKeyField},
+    relation::{BelongsToAttribute, HasManyAttribute, HasOneAttribute, RelationDefinition},
 };
+use corrosion_orm_core::schema::relation::RelationType;
 use std::collections::HashSet;
 use syn::{DeriveInput, Fields, spanned::Spanned};
 
+/// Builds a TableData value from a derive-input struct by extracting table metadata, columns, the single primary key, indexes (table- and field-level), and relation definitions.
+///
+/// Returns a populated `TableData` containing `ident`, resolved `name`, parsed `fields`, the required `primary_key`, normalized `indexes`, and any `relations` discovered on fields. Errors if the input is not a struct, if no field is marked with `#[PrimaryKey]`, if index names collide, or if attribute/field parsing fails; such errors are returned as `syn::Error`.
+///
+/// # Examples
+///
+/// ```ignore
+/// use syn::parse_quote;
+///
+/// let mut ast: syn::DeriveInput = parse_quote! {
+///     #[Table(name = "users")]
+///     struct User {
+///         #[PrimaryKey]
+///         id: i32,
+///         #[Column(index)]
+///         email: String,
+///     }
+/// };
+///
+/// let table = parse_model(&mut ast).expect("failed to parse model");
+/// assert_eq!(table.name, "users");
+/// assert_eq!(table.ident, syn::Ident::new("User", proc_macro2::Span::call_site()));
+/// ```
 pub fn parse_model(ast: &mut DeriveInput) -> syn::Result<TableData> {
     let table_attribute: TableAttribute = deluxe::extract_attributes(ast)?;
-    let (fields, primary_key) = if let syn::Data::Struct(s) = &mut ast.data {
+    let (fields, primary_key, relations) = if let syn::Data::Struct(s) = &mut ast.data {
         parse_fields(&mut s.fields)?
     } else {
         return Err(syn::Error::new(
@@ -78,34 +103,112 @@ pub fn parse_model(ast: &mut DeriveInput) -> syn::Result<TableData> {
         fields,
         primary_key,
         indexes,
+        relations,
     })
 }
+macro_rules! parse_relation {
+    ($variant:ident, $attr_type:ty, $field:ident, $relations:ident, $field_name:ident) => {
+        if $field
+            .attrs
+            .iter()
+            .any(|a| a.path().is_ident(stringify!($variant)))
+        {
+            let attr: $attr_type = deluxe::extract_attributes($field)?;
 
-fn parse_fields(fields: &mut Fields) -> syn::Result<(Vec<Field>, Option<PrimaryKeyField>)> {
+            let foreign_key = attr
+                .foreign_key
+                .unwrap_or_else(|| format!("{}_id", $field.ident.as_ref().unwrap()));
+            $relations.push(RelationDefinition {
+                relation_type: RelationType::$variant,
+                table: attr.table,
+                foreign_key,
+                relation_name: $field_name.clone(),
+                ty: $field.ty.clone(),
+                ident: $field.ident.clone().unwrap(),
+            });
+            continue;
+        }
+    };
+}
+/// Parses struct fields into column definitions, an optional primary key, and relation definitions.
+///
+/// Extracts column attributes for each named field, identifies a single field marked with
+/// `#[PrimaryKey]` (erroring if more than one), and collects relation metadata for fields
+/// annotated with `#[HasOne]`, `#[HasMany]`, or `#[BelongsTo]`.
+///
+/// # Errors
+///
+/// Returns an error if a field is unnamed, if multiple fields are marked with `#[PrimaryKey]`,
+/// or if attribute parsing fails.
+///
+/// # Returns
+///
+/// A tuple of `(Vec<Field>, Option<PrimaryKeyField>, Vec<RelationDefinition>)` where the first
+/// element is the parsed non-primary fields, the second is the primary key if present, and the
+/// third contains any detected relation definitions.
+///
+/// # Examples
+///
+/// ```ignore
+/// use syn::{parse_str, DeriveInput};
+///
+/// // parse a struct derive input, then forward its Fields to `parse_fields`
+/// let input: DeriveInput = parse_str("struct User { id: i32, name: String }").unwrap();
+/// if let syn::Data::Struct(mut s) = input.data {
+///     let (fields, primary_key, relations) = crate::model::parser::parse_fields(&mut s.fields).unwrap();
+///     // `fields` contains parsed columns, `primary_key` is Some(...) if a field had #[PrimaryKey],
+///     // and `relations` contains any HasOne/HasMany/BelongsTo definitions.
+/// }
+/// ```
+fn parse_fields(
+    fields: &mut Fields,
+) -> syn::Result<(Vec<Field>, Option<PrimaryKeyField>, Vec<RelationDefinition>)> {
     let mut fields_vec = Vec::new();
     let mut primary_key: Option<PrimaryKeyField> = None;
+    let mut relations: Vec<RelationDefinition> = Vec::new();
 
     for field in fields.iter_mut() {
-        let has_pk = field.attrs.iter().any(|a| a.path().is_ident("PrimaryKey"));
-
         let col_attr: ColumnAttribute = deluxe::extract_attributes(field)?;
-        let pk_attr: PrimaryKeyAttribute = deluxe::extract_attributes(field)?;
-
-        if has_pk {
+        let field_ident = field
+            .ident
+            .clone()
+            .ok_or_else(|| syn::Error::new(field.span(), "Field must be named"))?;
+        let field_name = field_ident.to_string();
+        if field.attrs.iter().any(|a| a.path().is_ident("PrimaryKey")) {
+            let pk_attr: PrimaryKeyAttribute = deluxe::extract_attributes(field)?;
             if primary_key.is_some() {
                 return Err(syn::Error::new(
                     field.span(),
                     "Only one field can be marked with #[PrimaryKey]",
                 ));
             }
-            primary_key = Some(PrimaryKeyField::from((col_attr, pk_attr, &*field)));
-        } else {
-            fields_vec.push(Field::from((col_attr, &*field)));
+            primary_key = Some(PrimaryKeyField::from((&col_attr, pk_attr, &*field)));
+            continue;
         }
+        parse_relation!(HasOne, HasOneAttribute, field, relations, field_name);
+        parse_relation!(HasMany, HasManyAttribute, field, relations, field_name);
+        parse_relation!(BelongsTo, BelongsToAttribute, field, relations, field_name);
+        let f = Field::try_from((col_attr, &*field))?;
+        fields_vec.push(f);
     }
-    Ok((fields_vec, primary_key))
+    Ok((fields_vec, primary_key, relations))
 }
 
+/// Validates that every index in `indexes` has a unique `name`.
+///
+/// Returns an error when two or more indexes share the same name; returns `Ok(())` if all names are distinct.
+///
+/// # Examples
+///
+/// ```ignore
+/// // constructs two indexes with the same name and asserts validation fails
+/// let indexes = vec![
+///     IndexDefinition::new("idx_users_email".into(), vec!["email".into()], false),
+///     IndexDefinition::new("idx_users_email".into(), vec!["other".into()], false),
+/// ];
+///
+/// assert!(validate_unique_index_names(&indexes).is_err());
+/// ```
 fn validate_unique_index_names(indexes: &[IndexDefinition]) -> syn::Result<()> {
     let mut seen_names = HashSet::new();
 
@@ -318,6 +421,31 @@ mod tests {
         );
     }
 
+    /// Verifies that table-level composite indexes and field-level indexes are both collected into the parsed `TableData`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use syn::parse_quote;
+    /// # use corrosion_orm_macros::model::parser::parse_model;
+    /// # use syn::DeriveInput;
+    /// let mut input: DeriveInput = parse_quote! {
+    ///     #[Table(name = "users")]
+    ///     #[Index(name = "idx_composite", fields = ["email", "username"], unique = true)]
+    ///     struct User {
+    ///         #[Column(name = "id")]
+    ///         #[PrimaryKey]
+    ///         id: i32,
+    ///         #[Column(name = "email", index)]
+    ///         email: String,
+    ///         #[Column(name = "username")]
+    ///         username: String,
+    ///     }
+    /// };
+    /// let table_data = parse_model(&mut input).unwrap();
+    /// assert!(table_data.indexes.iter().any(|idx| idx.name == "idx_composite"));
+    /// assert!(table_data.indexes.iter().any(|idx| idx.name == "idx_users_email"));
+    /// ```
     #[test]
     fn test_mixed_field_and_table_indexes() {
         let mut input: DeriveInput = parse_quote! {
@@ -345,5 +473,42 @@ mod tests {
             .any(|idx| idx.name == "idx_users_email");
         assert!(has_composite);
         assert!(has_email);
+    }
+    /// Ensures parsing fails when a struct uses unnamed (tuple) fields.
+    ///
+    /// Asserts that `parse_model` returns an error containing `"Field must be named"`
+    /// for a tuple-style struct field so that unnamed fields are rejected.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut input: DeriveInput = parse_quote! {
+    ///     struct User(
+    ///         #[Column(name = "id")]
+    ///         #[PrimaryKey]
+    ///         i32
+    ///     );
+    /// };
+    /// let result = parse_model(&mut input);
+    /// assert!(result.is_err());
+    /// assert!(result.unwrap_err().to_string().contains("Field must be named"));
+    /// ```
+    #[test]
+    fn field_no_ident() {
+        let mut input: DeriveInput = parse_quote! {
+            struct User(
+                #[Column(name = "id")]
+                #[PrimaryKey]
+                i32
+            );
+        };
+        let result = parse_model(&mut input);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Field must be named")
+        );
     }
 }

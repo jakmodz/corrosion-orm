@@ -117,8 +117,87 @@ use validation_parser::parser::parse_validation;
 ///     #[Column(name = "price")]
 ///     price: f64,
 /// }
+///
+/// # Relationships
+/// Corrosion ORM supports strongly-typed database relationships using three attributes:
+/// `#[HasMany]`, `#[BelongsTo]`, and `#[HasOne]`.
+///
+/// ### The Explicit Foreign Key Rule
+/// Because Corrosion ORM provides a compile-time type-safe query builder, any table that
+/// contains a foreign key **must explicitly define that physical column as a standard field**.
+/// This ensures the generated `COLUMN` enum includes the foreign key for type-safe queries
+/// (e.g., `post::COLUMN.teacher_id.eq(1)`).
+///
+/// ---
+///
+/// ### `#[HasMany]` (One-to-Many)
+/// Defines the "One" side of a One-to-Many relationship. This attribute is placed on a `Vec<T>` field.
+/// **Note:** `HasMany` is a virtual relationship. It generates the Rust code to automatically fetch
+/// related records, but it **does not** generate physical columns or constraints on the current table.
+///
+/// **Attributes:**
+/// * `foreign_key`: The column name in the *target* table that points back to this table.
+/// * `table`: The name of the *target* table.
+///
+/// ### `#[BelongsTo]` (Many-to-One)
+/// Defines the "Many" side (the owning side) of a relationship. It indicates that the current
+/// table holds the physical foreign key. During DDL generation, this attribute creates a
+/// SQL `FOREIGN KEY` constraint linking back to the parent table.
+///
+/// **Attributes:**
+/// * `foreign_key`: The explicit column name in *this* table that holds the parent's ID.
+/// * `table`: The name of the *parent* table.
+///
+/// ### `#[HasOne]` (One-to-One)
+/// Similar to `BelongsTo`, but strictly enforces a One-to-One relationship. During DDL generation,
+/// it creates both a `FOREIGN KEY` constraint and a `UNIQUE` constraint on the column to guarantee
+/// a 1:1 mapping.
+///
+/// ---
+///
+/// # Full Relationship Example
+/// Demonstrating a 1-to-N relationship between `Teacher` and `Post`.
+///
+/// ```rust
+/// use corrosion_orm_macros::Model;
+///
+/// // --- The "One" Side ---
+/// #[derive(Model, Default)]
+/// #[Table(name = "teachers")]
+/// pub struct Teacher {
+///     #[Column(name = "id")]
+///     #[PrimaryKey]
+///     pub id: i64,
+///
+///     #[Column(name = "name")]
+///     pub name: String,
+///
+///     // Virtual relation: Fetches `Vec<Post>` automatically. Generates NO sql columns here.
+///     #[HasMany(foreign_key = "teacher_id", table = "posts")]
+///     pub posts: Vec<Post>,
+/// }
+///
+/// // --- The "Many" Side ---
+/// #[derive(Model, Default)]
+/// #[Table(name = "posts")]
+/// pub struct Post {
+///     #[Column(name = "id")]
+///     #[PrimaryKey]
+///     pub id: i64,
+///
+///     // 1. Explicit physical column for the compile-time type-safe query builder
+///     #[Column(name = "teacher_id")]
+///     pub teacher_id: i64,
+///
+///     // 2. Relation attribute to generate the SQL FOREIGN KEY constraint and fetch the parent
+///     #[BelongsTo(foreign_key = "teacher_id", table = "teachers")]
+///     pub teacher: Teacher,
+/// }
 /// ```
-#[proc_macro_derive(Model, attributes(Table, Column, PrimaryKey, Index))]
+#[proc_macro_derive(
+    Model,
+    attributes(Table, Column, PrimaryKey, Index, HasOne, HasMany, BelongsTo)
+)]
 pub fn model_derive(input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as DeriveInput);
     let model = match parse_model(&mut ast) {
