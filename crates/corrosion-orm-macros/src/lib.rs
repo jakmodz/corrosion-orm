@@ -132,8 +132,9 @@ use validation_parser::parser::parse_validation;
 ///
 /// ### `#[HasMany]` (One-to-Many)
 /// Defines the "One" side of a One-to-Many relationship. This attribute is placed on a `Vec<T>` field.
-/// **Note:** `HasMany` is a virtual relationship. It generates the Rust code to automatically fetch
+/// **Notes:** `HasMany` is a virtual relationship. It generates the Rust code to automatically fetch
 /// related records, but it **does not** generate physical columns or constraints on the current table.
+/// !!!!! The Model also needs to derive Clone trait
 ///
 /// **Attributes:**
 /// * `foreign_key`: The column name in the *target* table that points back to this table.
