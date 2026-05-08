@@ -31,11 +31,12 @@ impl<'query> Join<'query> {
     ///
     /// ```
     /// use std::borrow::Cow;
+    /// use corrosion_orm_core::query::join::{Join, JoinType};
     /// let j = Join::new(Cow::Borrowed("posts"), "users.id".to_string(), "posts.user_id".to_string(), JoinType::Left);
-    /// assert_eq!(j.table, Cow::Borrowed("posts"));
-    /// assert_eq!(j.on_left, "users.id");
-    /// assert_eq!(j.on_right, "posts.user_id");
-    /// matches!(j.ty, JoinType::Left);
+    /// assert_eq!(j.table(), "posts");
+    /// assert_eq!(j.on_left(), "users.id");
+    /// assert_eq!(j.on_right(), "posts.user_id");
+    /// matches!(j.ty(), JoinType::Left);
     /// ```
     pub fn new(table: Cow<'query, str>, on_left: String, on_right: String, ty: JoinType) -> Self {
         Self {
@@ -44,6 +45,22 @@ impl<'query> Join<'query> {
             on_right,
             ty,
         }
+    }
+
+    pub fn table(&self) -> &str {
+        &self.table
+    }
+
+    pub fn on_left(&self) -> &str {
+        &self.on_left
+    }
+
+    pub fn on_right(&self) -> &str {
+        &self.on_right
+    }
+
+    pub fn ty(&self) -> &JoinType {
+        &self.ty
     }
     /// Create a `Join` derived from a relationship definition.
     ///
@@ -83,8 +100,10 @@ impl<'query> ToSql for Join<'query> {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use std::borrow::Cow;
+    /// use corrosion_orm_core::prelude::*;
+    /// use corrosion_orm_core::query::join::{Join, JoinType};
     ///
     /// // Construct a join representing: LEFT JOIN users ON posts.user_id = users.id
     /// let join = Join::new(
@@ -94,10 +113,13 @@ impl<'query> ToSql for Join<'query> {
     ///     JoinType::Left,
     /// );
     ///
-    /// let mut ctx = QueryContext { sql: String::new() };
-    /// let dialect = /* any SqlDialect implementation */ ();
-    /// join.to_sql(&mut ctx, &dialect);
+    /// let mut ctx = QueryContext::default();
+    /// # #[cfg(feature = "sqlite")]
+    /// # {
+    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
+    /// join.to_sql(&mut ctx, &SqliteDialect);
     /// assert!(ctx.sql.contains("LEFT JOIN users ON posts.user_id = users.id"));
+    /// # }
     /// ```
     fn to_sql(&self, ctx: &mut QueryContext, _dialect: &dyn SqlDialect) {
         match self.ty {

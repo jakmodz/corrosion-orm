@@ -40,7 +40,7 @@ impl TryFrom<(ColumnAttribute, &syn::Field)> for Field {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// use std::convert::TryFrom;
     /// // assume `attr` is a ColumnAttribute and `syn_field` is a parsed `syn::Field`
     /// let field = Field::try_from((attr, &syn_field))?;

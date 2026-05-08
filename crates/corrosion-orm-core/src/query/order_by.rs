@@ -49,14 +49,26 @@ impl<C: ColumnTrait> ToSql for OrderBy<C> {
     /// # Examples
     ///
     /// ```
-    /// use crate::{OrderBy, OrderDirection, QueryContext};
+    /// use corrosion_orm_core::prelude::*;
+    /// use corrosion_orm_core::query::order_by::{OrderBy, OrderDirection};
+    /// # use corrosion_orm_core::types::column_trait::ColumnTrait;
+    /// # use corrosion_orm_core::types::column_ref::ColumnRef;
+    /// # #[derive(Debug, Clone, Copy)]
+    /// # struct MockColumn;
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
     ///
     /// let mut ctx = QueryContext::default();
-    /// // `col` should be a value implementing the column trait used by your crate
-    /// let col = /* construct a column, e.g. `users::id` */ todo!();
+    /// let col = MockColumn;
     /// let ob = OrderBy::new(col, OrderDirection::Desc);
-    /// ob.to_sql(&mut ctx, &crate::dialect::DefaultSqlDialect);
+    /// # #[cfg(feature = "sqlite")]
+    /// # {
+    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
+    /// ob.to_sql(&mut ctx, &SqliteDialect);
     /// assert!(ctx.sql.ends_with(" DESC"));
+    /// # }
     /// ```
     fn to_sql(&self, ctx: &mut QueryContext, _dialect: &dyn SqlDialect) {
         self.column.as_qualified().render(ctx);

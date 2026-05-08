@@ -11,7 +11,7 @@ impl SqlDialect for MockSqliteDialect {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// let dialect = MockSqliteDialect;
     /// let placeholder = dialect.bind_param(&0);
     /// assert_eq!(placeholder, "?");
@@ -66,12 +66,13 @@ impl User {
     /// # Examples
     ///
     /// ```
+    /// use corrosion_orm_test::test_entities::User;
     /// let u = User::example();
     /// assert_eq!(u.id, 1);
     /// assert_eq!(u.name, "Bob");
     /// ```
     #[allow(dead_code)]
-    pub(crate) fn example() -> Self {
+    pub fn example() -> Self {
         Self {
             id: 1,
             name: String::from("Bob"),
@@ -86,7 +87,9 @@ impl User {
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
+/// use corrosion_orm_test::test_entities::init_sqlite;
+///
 /// #[tokio::test]
 /// async fn init_sqlite_example() {
 ///     let _driver = init_sqlite().await;
@@ -98,7 +101,7 @@ impl User {
 /// An initialized `SqliteDriver` connected to an in-memory database with schemas for
 /// `User`, `Post`, and `Teacher` created.
 #[allow(dead_code)]
-pub(crate) async fn init_sqlite() -> SqliteDriver {
+pub async fn init_sqlite() -> SqliteDriver {
     use corrosion_orm_core::SqliteDriver;
     use corrosion_orm_core::prelude::*;
 

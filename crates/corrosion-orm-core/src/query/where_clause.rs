@@ -168,11 +168,26 @@ impl<C: ColumnTrait> ToSql for Condition<C> {
     /// # Examples
     ///
     /// ```
+    /// use corrosion_orm_core::prelude::*;
+    /// use corrosion_orm_core::query::where_clause::Condition;
+    /// # use corrosion_orm_core::types::column_trait::ColumnTrait;
+    /// # use corrosion_orm_core::types::column_ref::ColumnRef;
+    /// # #[derive(Debug, Clone, Copy, PartialEq)]
+    /// # struct MockColumn;
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    ///
     /// let mut ctx = QueryContext::default();
-    /// let dialect = DefaultSqlDialect::default();
-    /// let cond = Condition::Eq(column("id"), Value::from(42));
+    /// # #[cfg(feature = "sqlite")]
+    /// # {
+    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
+    /// let dialect = SqliteDialect;
+    /// let cond = Condition::Eq(MockColumn, Value::from(42));
     /// cond.to_sql(&mut ctx, &dialect);
     /// assert!(ctx.sql.contains("id ="));
+    /// # }
     /// ```
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         macro_rules! binary_op {
@@ -221,10 +236,9 @@ impl<C: ColumnTrait> Condition<C> {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// # use crate::{QueryContext, SqlDialect, Value, render_list_op};
-    /// # // Assume `ctx`, `dialect`, `col`, and `vals` are available here.
-    /// // render_list_op(&self, &mut ctx, dialect, &col, " IN ", &vals);
+    /// ```ignore
+    /// // Example of internal usage:
+    /// // cond.render_list_op(&mut ctx, dialect, &col, " IN ", &vals);
     /// ```
     fn render_list_op(
         &self,

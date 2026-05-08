@@ -41,6 +41,8 @@ pub mod where_clause;
 
 pub use delete::Delete;
 pub use insert::Insert;
+pub use join::{Join, JoinType};
+pub use order_by::{OrderBy, OrderDirection};
 pub use select::Select;
 pub use to_sql::ToSql;
 pub use update::Update;

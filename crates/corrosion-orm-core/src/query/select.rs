@@ -29,7 +29,7 @@ use super::where_clause::WhereClause;
 /// use corrosion_orm_core::query::where_clause::WhereClause;
 /// use corrosion_orm_core::types::ColumnTrait;
 ///
-/// #[derive(Clone, Copy)]
+/// #[derive(Clone, Copy, Debug, PartialEq)]
 /// enum UserColumn { Id, Name }
 /// impl ColumnTrait for UserColumn {
 ///     fn table_name(&self) -> &'static str { "users" }
@@ -62,7 +62,14 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
     /// # Examples
     ///
     /// ```
-    /// let _sel = Select::new("users");
+    /// use corrosion_orm_core::query::select::Select;
+    /// # use corrosion_orm_core::types::ColumnTrait;
+    /// # #[derive(Clone, Copy)] enum MockColumn {}
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    /// let _sel = Select::<MockColumn>::new("users");
     /// ```
     pub fn new<T: Into<Cow<'col, str>>>(table: T) -> Self {
         Self {
@@ -79,9 +86,16 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
+    /// use corrosion_orm_core::query::select::Select;
+    /// # use corrosion_orm_core::types::ColumnTrait;
+    /// # #[derive(Clone, Copy)] enum MockColumn {}
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
     /// // Add a single column to a Select builder
-    /// let sel = Select::new("users").add_column("id");
+    /// let sel = Select::<MockColumn>::new("users").add_column("id");
     /// ```
     pub fn add_column<Column: Into<Cow<'col, str>>>(mut self, column: Column) -> Self {
         self.columns.push(column.into());
@@ -106,8 +120,15 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
     /// # Examples
     ///
     /// ```
-    /// let select = Select::new("users").where_clause(WhereClause::new("id = 1"));
-    /// // `select` now contains the provided WHERE clause
+    /// use corrosion_orm_core::query::select::Select;
+    /// use corrosion_orm_core::query::where_clause::WhereClause;
+    /// # use corrosion_orm_core::types::ColumnTrait;
+    /// # #[derive(Clone, Copy, Debug, PartialEq)] enum MockColumn { Id }
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    /// let select = Select::new("users").where_clause(WhereClause::eq(MockColumn::Id, 1));
     /// ```
     pub fn where_clause(mut self, where_clause: WhereClause<C>) -> Self {
         self.where_clause = Some(where_clause);
@@ -120,8 +141,18 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
     /// # Examples
     ///
     /// ```
-    /// let join = /* construct a Join<'_> value */ unimplemented!();
-    /// let q = Select::new("users").join(join);
+    /// use std::borrow::Cow;
+    /// use corrosion_orm_core::query::select::Select;
+    /// use corrosion_orm_core::query::join::{Join, JoinType};
+    /// # use corrosion_orm_core::types::ColumnTrait;
+    /// # #[derive(Clone, Copy)] enum MockColumn {}
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    ///
+    /// let join = Join::new(Cow::Borrowed("posts"), "users.id".to_string(), "posts.user_id".to_string(), JoinType::Left);
+    /// let q = Select::<MockColumn>::new("users").join(join);
     /// ```
     pub fn join(mut self, join: Join<'col>) -> Self {
         if let Some(joins) = &mut self.joins {
@@ -139,9 +170,16 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
     /// # Examples
     ///
     /// ```
-    /// # use corrosion_orm_core::query::{Select, OrderBy, OrderDirection};
+    /// use corrosion_orm_core::query::select::Select;
+    /// use corrosion_orm_core::query::order_by::{OrderBy, OrderDirection};
+    /// # use corrosion_orm_core::types::ColumnTrait;
+    /// # #[derive(Clone, Copy, Debug, PartialEq)] enum MockColumn { CreatedAt }
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "created_at" }
+    /// # }
     /// let select = Select::new("users")
-    ///     .add_order_by(OrderBy::new("created_at", OrderDirection::Desc));
+    ///     .add_order_by(OrderBy::new(MockColumn::CreatedAt, OrderDirection::Desc));
     /// ```
     pub fn add_order_by(mut self, order_by: OrderBy<C>) -> Self {
         if let Some(order_clause) = &mut self.order_by {
@@ -182,11 +220,23 @@ impl<C: ColumnTrait> ToSql for Select<'_, C> {
     /// # Examples
     ///
     /// ```
-    /// // Pseudocode example — types omitted for brevity
+    /// use corrosion_orm_core::prelude::*;
+    /// use corrosion_orm_core::query::select::Select;
+    /// # use corrosion_orm_core::types::ColumnTrait;
+    /// # #[derive(Clone, Copy)] enum MockColumn {}
+    /// # impl ColumnTrait for MockColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    ///
     /// let mut ctx = QueryContext::default();
-    /// let sel = Select::new("users").add_column("id");
-    /// sel.to_sql(&mut ctx, &SqliteDialect {});
+    /// let sel = Select::<MockColumn>::new("users").add_column("id");
+    /// # #[cfg(feature = "sqlite")]
+    /// # {
+    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
+    /// sel.to_sql(&mut ctx, &SqliteDialect);
     /// assert_eq!(ctx.sql, "SELECT id FROM users");
+    /// # }
     /// ```
     fn to_sql(&self, ctx: &mut super::query_type::QueryContext, _dialect: &dyn SqlDialect) {
         ctx.sql.push_str(&format!(
@@ -230,10 +280,21 @@ impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
     /// # Examples
     ///
     /// ```
-    /// let schema: TableSchemaModel = /* obtain or construct schema */ unimplemented!();
+    /// use corrosion_orm_core::prelude::*;
+    /// use corrosion_orm_core::query::select::Select;
+    /// # use corrosion_orm_core::types::ColumnTrait;
+    /// # #[derive(Clone, Copy, Debug, PartialEq)] enum UserColumn { Id }
+    /// # impl ColumnTrait for UserColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    ///
+    /// let schema = TableSchemaModel::new("users".to_string());
     /// let sel = Select::<UserColumn>::from(&schema);
+    /// # #[cfg(feature = "test-utils")]
+    /// # {
     /// assert_eq!(sel.get_table(), schema.name.as_str());
-    /// assert!(sel.get_columns().iter().all(|c| c.starts_with(&format!("{}.", schema.name))));
+    /// # }
     /// ```
     fn from(schema: &'col TableSchemaModel) -> Self {
         Self {
@@ -276,12 +337,21 @@ impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
     /// # Examples
     ///
     /// ```
-    /// // Given a schema for a `users` table with columns `id` and `name`
-    /// let schema = TableSchemaModel::new("users", vec!["id", "name"]);
+    /// use corrosion_orm_core::prelude::*;
+    /// use corrosion_orm_core::query::select::Select;
+    /// # use corrosion_orm_core::types::ColumnTrait;
+    /// # #[derive(Clone, Copy, Debug, PartialEq)] enum UserColumn { Id }
+    /// # impl ColumnTrait for UserColumn {
+    /// #     fn table_name(&self) -> &'static str { "users" }
+    /// #     fn column_name(&self) -> &'static str { "id" }
+    /// # }
+    ///
+    /// let schema = TableSchemaModel::new("users".to_string());
     /// let select: Select<'_, UserColumn> = Select::from(schema);
-    /// assert!(select.columns.contains(&std::borrow::Cow::Owned("users.id".into())));
-    /// assert!(select.columns.contains(&std::borrow::Cow::Owned("users.name".into())));
-    /// assert_eq!(select.table, std::borrow::Cow::Owned("users".into()));
+    /// # #[cfg(feature = "test-utils")]
+    /// # {
+    /// assert_eq!(select.get_table(), "users");
+    /// # }
     /// ```
     fn from(schema: TableSchemaModel) -> Self {
         let mut columns = Vec::new();

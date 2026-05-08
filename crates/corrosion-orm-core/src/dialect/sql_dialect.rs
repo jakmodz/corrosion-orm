@@ -79,9 +79,10 @@ pub trait SqlDialect: Send + Sync {
     /// # Examples
     ///
     /// ```
-    /// use crate::schema::table::ColumnSchemaModel;
-    /// use crate::schema::types::SqlType;
-    /// use crate::dialect::tests::DummyDialect; // a test dialect implementing SqlDialect
+    /// use corrosion_orm_core::dialect::sql_dialect::SqlDialect;
+    /// use corrosion_orm_core::schema::table::ColumnSchemaModel;
+    /// use corrosion_orm_core::types::column_type::SqlType;
+    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
     ///
     /// let col = ColumnSchemaModel {
     ///     name: "email".into(),
@@ -90,9 +91,12 @@ pub trait SqlDialect: Send + Sync {
     ///     is_unique: true,
     /// };
     ///
-    /// let dialect = DummyDialect::default();
+    /// # #[cfg(feature = "sqlite")]
+    /// # {
+    /// let dialect = SqliteDialect;
     /// let def = dialect.cast_column(&col);
-    /// assert_eq!(def, "    email VARCHAR(255) NOT NULL UNIQUE");
+    /// assert_eq!(def, "    email TEXT NOT NULL UNIQUE");
+    /// # }
     /// ```
     fn cast_column(&self, column: &ColumnSchemaModel) -> String {
         let mut s = format!(
@@ -140,7 +144,7 @@ pub trait SqlDialect: Send + Sync {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// // Given an implementation `dialect` of `SqlDialect` and a `schema: TableSchemaModel`,
     /// // produce the DDL (this example is illustrative; types and values omitted).
     /// let ddl = dialect.build_create_table_ddl(&schema, true).unwrap();
@@ -205,10 +209,17 @@ pub trait SqlDialect: Send + Sync {
     /// # Examples
     ///
     /// ```
-    /// // Assuming `dialect` implements `SqlDialect` and `IndexModel` is available:
+    /// use corrosion_orm_core::dialect::sql_dialect::SqlDialect;
+    /// use corrosion_orm_core::schema::table::IndexModel;
+    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
+    ///
+    /// # #[cfg(feature = "sqlite")]
+    /// # {
+    /// # let dialect = SqliteDialect;
     /// let index = IndexModel { name: "idx_users_on_email".into(), fields: vec!["email".into()], unique: true };
     /// let sql = dialect.generate_create_index_ddl("users", &index);
     /// assert_eq!(sql, "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_on_email ON users (email);\n");
+    /// # }
     /// ```
     fn generate_create_index_ddl(&self, table_name: &str, index: &IndexModel) -> String {
         let unique = if index.unique { "UNIQUE " } else { "" };

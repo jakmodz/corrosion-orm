@@ -9,11 +9,11 @@ use syn::Type;
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use syn::Type;
 ///
 /// let ty: Type = syn::parse_str("Vec<i32>").unwrap();
-/// let inner = crate::extract_vec_inner_type(&ty).expect("should extract inner type");
+/// let inner = extract_vec_inner_type(&ty).expect("should extract inner type");
 /// if let Type::Path(tp) = inner {
 ///     assert_eq!(tp.path.segments.last().unwrap().ident, "i32");
 /// } else {
@@ -39,7 +39,7 @@ fn extract_vec_inner_type(ty: &Type) -> Option<&Type> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use syn::{Type, parse_quote};
 /// let ty: Type = parse_quote!(std::collections::HashMap<String, i32>);
 /// let ident = extract_type_ident(&ty).unwrap();

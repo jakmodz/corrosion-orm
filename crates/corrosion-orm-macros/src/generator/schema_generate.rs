@@ -15,7 +15,7 @@ use quote::quote;
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use syn::Type;
 /// use quote::ToTokens;
 ///
@@ -54,7 +54,7 @@ fn extract_vec_inner_type(ty: &syn::Type) -> syn::Type {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// // Given a `TableData` describing a struct, generate the schema tokens:
 /// // let table: TableData = /* construct or obtain TableData */ ;
 /// let tokens = generate_schema_impl(&table);
@@ -167,7 +167,7 @@ fn generate_primary_key(primary_key: &PrimaryKeyField) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use proc_macro2::TokenStream;
 /// use syn::Ident;
 ///

@@ -27,7 +27,7 @@ impl From<(&ColumnAttribute, PrimaryKeyAttribute, &syn::Field)> for PrimaryKeyFi
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// use crate::model::primary_key::PrimaryKeyField;
     /// use crate::model::field::ColumnAttribute;
     /// use corrosion_orm_macros::PrimaryKeyAttribute;

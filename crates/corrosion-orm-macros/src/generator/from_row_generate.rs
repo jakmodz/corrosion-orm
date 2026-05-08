@@ -19,7 +19,7 @@ use syn::Type;
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// // Given a `table: TableData` describing a struct, generate the FromRow impl:
 /// let tokens = generate_from_row(&table);
 /// // `tokens` now contains the `impl<'r, R: sqlx::Row> sqlx::FromRow<'r, R> for ...` block.

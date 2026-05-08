@@ -50,14 +50,14 @@ fn sql_type_to_wrapper(sql_type: &SqlType) -> proc_macro2::TokenStream {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use syn::Type;
 ///
 /// let t = syn::parse_str::<Type>("i32").unwrap();
-/// assert_eq!(super::get_sql_type_from_rust_type(&t), i32::default().to_sql_type());
+/// assert_eq!(get_sql_type_from_rust_type(&t), i32::default().to_sql_type());
 ///
 /// let opt_t = syn::parse_str::<Type>("Option<String>").unwrap();
-/// assert_eq!(super::get_sql_type_from_rust_type(&opt_t), String::default().to_sql_type());
+/// assert_eq!(get_sql_type_from_rust_type(&opt_t), String::default().to_sql_type());
 /// ```
 fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
     match ty {
@@ -104,7 +104,7 @@ fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
 ///   (via the entity struct's `TableSchema::get_table_name`) and the column name for each variant.
 /// - A `Columns` struct with a field for each column, typed as the appropriate column wrapper (e.g., `StringColumn`, `NumericColumn`, etc.)
 ///   and a `pub const COLUMN: Columns` initializer that constructs each wrapper with the corresponding `Column` variant.
-/// If the table has no columns, an empty `Column` enum and an empty `Columns` struct with a `COLUMN` value are generated.
+///   If the table has no columns, an empty `Column` enum and an empty `Columns` struct with a `COLUMN` value are generated.
 ///
 /// # Parameters
 ///

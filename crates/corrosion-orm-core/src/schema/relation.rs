@@ -28,10 +28,16 @@ impl RelationModel {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use corrosion_orm_core::schema::{relation::RelationModel, relation::RelationType, table::ColumnSchemaModel};
+    /// use corrosion_orm_core::types::column_type::SqlType;
     ///
-    /// let field = ColumnSchemaModel::default();
+    /// let field = ColumnSchemaModel {
+    ///     name: "user_id".to_string(),
+    ///     is_nullable: false,
+    ///     is_unique: false,
+    ///     sql_type: SqlType::Integer,
+    /// };
     /// let rel = RelationModel::new(
     ///     RelationType::HasOne,
     ///     "profiles".to_string(),

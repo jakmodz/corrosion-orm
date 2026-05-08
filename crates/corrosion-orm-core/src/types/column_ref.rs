@@ -17,11 +17,14 @@ impl ColumnRef {
     /// # Examples
     ///
     /// ```rust
-    /// let mut ctx = QueryContext { sql: String::new() };
+    /// use corrosion_orm_core::prelude::QueryContext;
+    /// use corrosion_orm_core::types::column_ref::ColumnRef;
+    ///
+    /// let mut ctx = QueryContext::default();
     /// ColumnRef::Bare("id").render(&mut ctx);
     /// assert_eq!(ctx.sql, "id");
     ///
-    /// let mut ctx = QueryContext { sql: String::new() };
+    /// let mut ctx = QueryContext::default();
     /// ColumnRef::Qualified("users", "id").render(&mut ctx);
     /// assert_eq!(ctx.sql, "users.id");
     /// ```

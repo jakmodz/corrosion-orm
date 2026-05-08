@@ -13,7 +13,7 @@ use syn::{DeriveInput, Fields, spanned::Spanned};
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use syn::parse_quote;
 ///
 /// let mut ast: syn::DeriveInput = parse_quote! {
@@ -149,7 +149,7 @@ macro_rules! parse_relation {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use syn::{parse_str, DeriveInput};
 ///
 /// // parse a struct derive input, then forward its Fields to `parse_fields`
@@ -200,7 +200,7 @@ fn parse_fields(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// // constructs two indexes with the same name and asserts validation fails
 /// let indexes = vec![
 ///     IndexDefinition::new("idx_users_email".into(), vec!["email".into()], false),

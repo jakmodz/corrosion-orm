@@ -91,6 +91,9 @@ impl TableSchemaModel {
     /// # Examples
     ///
     /// ```
+    /// use corrosion_orm_core::schema::table::TableSchemaModel;
+    /// use corrosion_orm_core::types::column_type::SqlType;
+    ///
     /// let model = TableSchemaModel::new("users".to_string());
     /// assert_eq!(model.name, "users");
     /// assert!(model.fields.is_empty());
@@ -138,13 +141,15 @@ impl TableSchemaModel {
     /// # Examples
     ///
     /// ```
+    /// use corrosion_orm_core::schema::table::TableSchemaModel;
+    ///
     /// let mut m = TableSchemaModel::new("users".into());
     /// // default primary key name is empty; ensure a valid pk name to pass validation in this example
     /// m.primary_key.name = "id".into();
     /// m.column("name".into());
     /// assert!(m.validate().is_ok());
     /// ```
-    pub(crate) fn validate(&self) -> Result<(), SchemaValidationError> {
+    pub fn validate(&self) -> Result<(), SchemaValidationError> {
         if self.name.is_empty() {
             return Err(SchemaValidationError::EmptyTableName);
         }
@@ -202,12 +207,14 @@ impl TableSchemaModel {
     /// # Examples
     ///
     /// ```
+    /// use corrosion_orm_core::schema::table::TableSchemaModel;
+    ///
     /// let mut t = TableSchemaModel::new("users".into());
     /// t.column("name".into());
     /// let names = t.get_column_names();
     /// assert_eq!(names, vec!["", "name"]);
     /// ```
-    pub(crate) fn get_column_names(&self) -> Vec<&str> {
+    pub fn get_column_names(&self) -> Vec<&str> {
         let mut names = Vec::with_capacity(1 + self.fields.len() + self.relations.len());
         names.push(self.primary_key.name.as_str());
         for field in &self.fields {
@@ -230,6 +237,8 @@ impl TableSchemaModel {
     /// # Examples
     ///
     /// ```
+    /// use corrosion_orm_core::schema::table::TableSchemaModel;
+    ///
     /// let mut schema = TableSchemaModel::new("users".to_string());
     /// schema.column("name".to_string());
     /// schema.column("email".to_string());

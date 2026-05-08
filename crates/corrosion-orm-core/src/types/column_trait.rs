@@ -12,7 +12,16 @@ pub trait ColumnTrait: Copy + Send + Sync {
     /// # Examples
     ///
     /// ```
-    /// // assuming a type `MyColumn` implements `ColumnTrait`
+    /// use corrosion_orm_core::types::ColumnTrait;
+    /// use corrosion_orm_core::types::column_ref::ColumnRef;
+    ///
+    /// #[derive(Copy, Clone)]
+    /// enum MyColumn { Id }
+    /// impl ColumnTrait for MyColumn {
+    ///     fn table_name(&self) -> &'static str { "users" }
+    ///     fn column_name(&self) -> &'static str { "id" }
+    /// }
+    ///
     /// let r = MyColumn::Id.as_bare();
     /// assert_eq!(r, ColumnRef::Bare("id"));
     /// ```
@@ -27,6 +36,10 @@ pub trait ColumnTrait: Copy + Send + Sync {
     /// # Examples
     ///
     /// ```
+    /// use corrosion_orm_core::types::ColumnTrait;
+    /// use corrosion_orm_core::types::column_ref::ColumnRef;
+    ///
+    /// #[derive(Copy, Clone)]
     /// struct UserId;
     ///
     /// impl ColumnTrait for UserId {
