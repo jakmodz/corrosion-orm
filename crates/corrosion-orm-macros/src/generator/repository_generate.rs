@@ -112,7 +112,11 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 });
 
                 cascade_delete_before_impl.push(quote! {
-                    for item in self.#rel_ident.into_iter() {
+                    let __children = <#inner_ty as corrosion_orm_core::model::repository::Repo<Db>>::find()
+                        .filter(#inner_mod_name::COLUMN.#fk_column.eq(entity_pk.clone()))
+                        .all(db)
+                    .await?;
+                    for item in __children {
                         item.delete(db).await?;
                     }
                 });
