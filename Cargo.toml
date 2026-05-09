@@ -3,7 +3,7 @@ members = ["crates/corrosion-orm",
     "crates/corrosion-orm-core",
     "crates/corrosion-orm-macros",
     "crates/corrosion-orm-test"
-, "examples/example1"]
+]
 resolver = "3"
 
 [workspace.dependencies]

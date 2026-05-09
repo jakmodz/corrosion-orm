@@ -6,3 +6,8 @@ edition = "2024"
 [dependencies]
 corrosion-orm-core = { path = "../corrosion-orm-core" }
 corrosion-orm-macros = { path = "../corrosion-orm-macros" }
+[features]
+default = ["sqlite"]
+sqlite = ["corrosion-orm-core/sqlite"]
+log = ["corrosion-orm-core/log"]
+test-utils = ["corrosion-orm-core/test-utils"]
