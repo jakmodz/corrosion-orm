@@ -1,10 +1,16 @@
 #[cfg(test)]
 mod tests {
+
     use crate::{
         init_sqlite,
         test_entities::{Post, Teacher, User},
     };
-    use corrosion_orm_core::prelude::*;
+    use corrosion_orm_core::{
+        SqliteDriver,
+        model::{lazy::Lazy, lazy_collection::LazyCollection},
+        prelude::*,
+    };
+    use corrosion_orm_macros::Model;
 
     /// Helper to count rows in users table
     async fn count_users(conn: &mut impl Executor) -> Result<i64, CorrosionOrmError> {
@@ -740,6 +746,190 @@ mod tests {
         let final_teacher = Teacher::get_by_id(1, &mut conn).await?.unwrap();
         assert_eq!(final_teacher.posts.len(), 3);
         assert_eq!(count_posts(&mut conn).await?, 3);
+
+        Ok(())
+    }
+    #[derive(Model)]
+    #[Table(name = "countries")]
+    #[Index(name = "idx_countries_id", fields = ["id"], unique = true)]
+    pub struct Country {
+        #[Column(name = "id")]
+        #[PrimaryKey]
+        #[allow(unused)]
+        pub id: i32,
+        #[HasOne]
+        pub capital: Lazy<Capital>,
+    }
+
+    #[derive(Model, Default, Clone)]
+    pub struct Capital {
+        #[Column(name = "id")]
+        #[PrimaryKey]
+        pub id: i32,
+        pub name: String,
+    }
+    async fn init_schemas(schemas: Vec<TableSchemaModel>, driver: &mut SqliteDriver) {
+        for schema in schemas {
+            let mut ctx = QueryContext::from_model(
+                schema,
+                driver.acquire_conn().await.unwrap().get_dialect(),
+            );
+            driver
+                .acquire_conn()
+                .await
+                .unwrap()
+                .execute_query(&mut ctx)
+                .await
+                .unwrap();
+        }
+    }
+    #[tokio::test]
+    async fn test_lazy_fetch() -> Result<(), CorrosionOrmError> {
+        let mut driver = init_sqlite().await;
+        init_schemas(
+            vec![Capital::get_schema(), Country::get_schema()],
+            &mut driver,
+        )
+        .await;
+        let mut conn = driver.acquire_conn().await?;
+        let country = Country {
+            id: 1,
+            capital: Lazy::from_entity(Capital {
+                id: 2,
+                name: String::from("Warsaw"),
+            }),
+        };
+        country.save(&mut conn).await?;
+        let mut fetched_country = Country::get_by_id(1, &mut conn).await?.unwrap();
+        assert_eq!(
+            fetched_country.capital.load(&mut conn).await?.name,
+            String::from("Warsaw")
+        );
+        Ok(())
+    }
+    #[derive(Model)]
+    #[Table(name = "articles_lazy")]
+    pub struct ArticleLazy {
+        #[Column(name = "id")]
+        #[PrimaryKey]
+        pub id: i32,
+        #[BelongsTo(foreign_key = "author_id", table = "authors_lazy")]
+        pub author: Lazy<AuthorLazy>,
+    }
+
+    #[derive(Model, Default, Clone)]
+    #[Table(name = "authors_lazy")]
+    pub struct AuthorLazy {
+        #[Column(name = "id")]
+        #[PrimaryKey]
+        pub id: i32,
+        #[Column(name = "name")]
+        pub name: String,
+    }
+
+    #[derive(Model)]
+    #[Table(name = "departments_lazy")]
+    pub struct DepartmentLazy {
+        #[Column(name = "id")]
+        #[PrimaryKey]
+        pub id: i32,
+        #[HasMany(foreign_key = "department_id", table = "employees_lazy")]
+        pub employees: LazyCollection<EmployeeLazy, employeelazy::Column>,
+    }
+
+    #[derive(Model, Default, Clone)]
+    #[Table(name = "employees_lazy")]
+    pub struct EmployeeLazy {
+        #[Column(name = "id")]
+        #[PrimaryKey]
+        pub id: i32,
+        #[Column(name = "department_id")]
+        pub department_id: i32,
+        #[Column(name = "name")]
+        pub name: String,
+    }
+
+    #[tokio::test]
+    async fn test_lazy_fetch_belongs_to() -> Result<(), CorrosionOrmError> {
+        let mut driver = init_sqlite().await;
+        init_schemas(
+            vec![AuthorLazy::get_schema(), ArticleLazy::get_schema()],
+            &mut driver,
+        )
+        .await;
+
+        let mut conn = driver.acquire_conn().await?;
+
+        let article = ArticleLazy {
+            id: 1,
+            author: Lazy::from_entity(AuthorLazy {
+                id: 10,
+                name: "Alice".to_string(),
+            }),
+        };
+
+        article.save(&mut conn).await?;
+
+        let mut fetched = ArticleLazy::get_by_id(1, &mut conn).await?.unwrap();
+        let author = fetched.author.load(&mut conn).await?;
+
+        assert_eq!(author.id, 10);
+        assert_eq!(author.name, "Alice");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_lazy_fetch_has_many() -> Result<(), CorrosionOrmError> {
+        let schema = DepartmentLazy::get_schema();
+        let rel = schema
+            .relations
+            .iter()
+            .find(|r| r.relation_name == "employees")
+            .unwrap();
+        assert!(matches!(
+            rel.relation_type,
+            corrosion_orm_core::schema::relation::RelationType::HasMany
+        ));
+        assert!(!rel.is_eager, "employees relation should be lazy");
+
+        let mut driver = init_sqlite().await;
+        init_schemas(
+            vec![EmployeeLazy::get_schema(), DepartmentLazy::get_schema()],
+            &mut driver,
+        )
+        .await;
+
+        let mut conn = driver.acquire_conn().await?;
+
+        let department = DepartmentLazy {
+            id: 1,
+            employees: LazyCollection::new(),
+        };
+        department.save(&mut conn).await?;
+
+        EmployeeLazy {
+            id: 1,
+            department_id: 1,
+            name: "Emp One".to_string(),
+        }
+        .save(&mut conn)
+        .await?;
+
+        EmployeeLazy {
+            id: 2,
+            department_id: 1,
+            name: "Emp Two".to_string(),
+        }
+        .save(&mut conn)
+        .await?;
+
+        let mut fetched = DepartmentLazy::get_by_id(1, &mut conn).await?.unwrap();
+        let employees = fetched.employees.load(&mut conn).await?;
+
+        assert_eq!(employees.len(), 2);
+        assert!(employees.iter().any(|e| e.id == 1 && e.department_id == 1));
+        assert!(employees.iter().any(|e| e.id == 2 && e.department_id == 1));
 
         Ok(())
     }

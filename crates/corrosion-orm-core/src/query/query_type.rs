@@ -10,6 +10,7 @@ pub enum Value {
     Bool(bool),
     Date(chrono::NaiveDate),
     DateTime(chrono::NaiveDateTime),
+    Null,
 }
 
 macro_rules! impl_from_value {
@@ -55,12 +56,11 @@ impl From<chrono::NaiveDateTime> for Value {
 impl<T> From<Option<T>> for Value
 where
     Value: From<T>,
-    T: Default,
 {
     fn from(v: Option<T>) -> Self {
         match v {
             Some(inner) => Value::from(inner),
-            None => Value::from(T::default()),
+            None => Value::Null,
         }
     }
 }
@@ -94,6 +94,7 @@ impl QueryContext {
                     Value::Bool(b) => if *b { "1" } else { "0" }.to_string(),
                     Value::Date(d) => format!("'{}'", d),
                     Value::DateTime(naive_date_time) => format!("'{}'", naive_date_time),
+                    Value::Null => "NULL".to_string(),
                 };
                 sql.replace_range(pos..pos + placeholder.len(), &value_str);
             }
@@ -156,6 +157,25 @@ impl From<&str> for QueryContext {
             sql: sql.to_string(),
             values: Vec::new(),
             placeholder_count: 0,
+        }
+    }
+}
+impl From<Value> for i32 {
+    fn from(v: Value) -> Self {
+        match v {
+            Value::Int(i) => i,
+            Value::Int64(i) => i as i32,
+            _ => panic!("Cannot convert Value to i32"),
+        }
+    }
+}
+
+impl From<Value> for i64 {
+    fn from(v: Value) -> Self {
+        match v {
+            Value::Int(i) => i as i64,
+            Value::Int64(i) => i,
+            _ => panic!("Cannot convert Value to i64"),
         }
     }
 }

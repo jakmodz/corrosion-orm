@@ -313,11 +313,12 @@ impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
                     .relations
                     .iter()
                     .filter(|r| {
-                        matches!(
-                            r.relation_type,
-                            crate::schema::relation::RelationType::HasOne
-                                | crate::schema::relation::RelationType::BelongsTo
-                        )
+                        r.is_eager
+                            && matches!(
+                                r.relation_type,
+                                crate::schema::relation::RelationType::HasOne
+                                    | crate::schema::relation::RelationType::BelongsTo
+                            )
                     })
                     .filter_map(|r| Join::from_relation(r).ok())
                     .collect(),

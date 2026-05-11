@@ -37,4 +37,5 @@ pub struct RelationDefinition {
     pub relation_name: String,
     pub ty: syn::Type,
     pub ident: Ident,
+    pub is_eager: bool,
 }

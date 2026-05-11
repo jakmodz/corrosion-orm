@@ -84,6 +84,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
         syn::Ident::new(&table.primary_key.name, proc_macro2::Span::call_site());
 
     let mut relation_values_push = Vec::new();
+    let mut lazy_relation_values_push = Vec::new();
     let mut load_relations_impl = Vec::new();
     let mut cascade_save_before_impl = Vec::new();
     let mut cascade_save_after_impl = Vec::new();
@@ -97,6 +98,25 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
         let rel_ty = &rel.ty;
         let fk_name_str = &rel.foreign_key;
         let fk_column = syn::Ident::new(fk_name_str, proc_macro2::Span::call_site());
+
+        if !rel.is_eager {
+            match rel.relation_type {
+                RelationType::HasOne | RelationType::BelongsTo => {
+                    lazy_relation_values_push.push(quote! {
+                        let rel_value = self.#rel_ident
+                            .resolve_relation_id_value(
+                                db,
+                                |e| corrosion_orm_core::query::query_type::Value::from(e.get_id())
+                            )
+                            .await?
+                            .ok_or(corrosion_orm_core::driver::error::DriverError::NotFound)?;
+                        values.push(rel_value);
+                    });
+                }
+                RelationType::HasMany | RelationType::BelongsToMany => {}
+            }
+            continue;
+        }
 
         match rel.relation_type {
             RelationType::HasOne | RelationType::BelongsTo => {
@@ -170,7 +190,10 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
     quote! {
         impl #ident {
-            fn get_values_from_self(&self) -> Vec<corrosion_orm_core::query::query_type::Value> {
+            async fn get_values_from_self_with_db<Db: corrosion_orm_core::driver::executor::Executor>(
+                &self,
+                db: &mut Db,
+            ) -> Result<Vec<corrosion_orm_core::query::query_type::Value>, corrosion_orm_core::error::CorrosionOrmError> {
                 let mut values = Vec::new();
                 values.push(corrosion_orm_core::query::query_type::Value::from(self.#pk_ident.clone()));
                 #(
@@ -179,7 +202,9 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
                 #(#relation_values_push)*
 
-                values
+                #(#lazy_relation_values_push)*
+
+                Ok(values)
             }
 
             /// Returns the strongly-typed primary key for this entity
@@ -226,15 +251,15 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 let existing = db.fetch_optional::<Self>(&mut ctx_control).await?;
 
                 let mut ctx = QueryContext::new();
-
+                let values = self.get_values_from_self_with_db(db).await?;
                 if existing.is_none() {
                     let mut insert_query = corrosion_orm_core::query::insert::Insert::from(&schema)
-                        .values(self.get_values_from_self());
+                        .values(values);
                     insert_query.to_sql(&mut ctx, db.get_dialect());
                     db.execute_query(&mut ctx).await?;
                 } else {
                     let mut update_query = corrosion_orm_core::query::update::Update::<#mod_name::Column>::from(&schema)
-                        .values(self.get_values_from_self())
+                        .values(values)
                         .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, self.#pk_ident.clone()));
                     update_query.to_sql(&mut ctx, db.get_dialect());
                     db.execute_query(&mut ctx).await?;

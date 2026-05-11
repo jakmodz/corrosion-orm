@@ -17,6 +17,7 @@ macro_rules! bind_to_query {
             Value::Bool(b) => $query.bind(b),
             Value::Date(d) => $query.bind(d),
             Value::DateTime(d) => $query.bind(d),
+            Value::Null => $query.bind(Option::<String>::None),
         }
     };
 }

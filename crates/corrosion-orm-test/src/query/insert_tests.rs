@@ -169,4 +169,19 @@ mod tests {
         let (sql, _) = render_insert(insert);
         insta::assert_snapshot!(sql, @"INSERT INTO users (id, name) VALUES(?, ?)");
     }
+    #[test]
+    fn test_insert_with_option_none() {
+        let insert = Insert::new("users")
+            .columns(vec![Cow::Borrowed("username"), Cow::Borrowed("nickname")])
+            .values(vec![
+                Value::String("john_doe".to_string()),
+                Value::from(Option::<String>::None),
+            ]);
+        let mut ctx = QueryContext::new();
+        insert.to_sql(&mut ctx, &MockSqliteDialect);
+        let sql = ctx.to_debug_sql(&MockSqliteDialect);
+        insta::assert_snapshot!(sql, @"INSERT INTO users (username, nickname) VALUES('john_doe', NULL)");
+        assert_eq!(ctx.values.len(), 2);
+        assert_eq!(ctx.values[1], Value::Null);
+    }
 }

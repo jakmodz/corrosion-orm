@@ -2,45 +2,11 @@ use crate::TableData;
 use crate::model::Field;
 use crate::model::primary_key::PrimaryKeyField;
 use crate::model::relation::RelationDefinition;
+use crate::utils::extract_inner_type;
 use corrosion_orm_core::schema::relation::RelationType;
 use corrosion_orm_core::types::generation_strategy::GenerationType;
 use proc_macro2::TokenStream;
 use quote::quote;
-
-/// Extracts the inner type `T` from a `Vec<T>` `syn::Type`, or returns the original type unchanged.
-///
-/// If `ty` is a path type whose last segment is `Vec` with a single generic type argument, this
-/// function returns a clone of that inner type. For any other `syn::Type` it returns a clone of
-/// `ty`.
-///
-/// # Examples
-///
-/// ```ignore
-/// use syn::Type;
-/// use quote::ToTokens;
-///
-/// // Vec inner type is extracted
-/// let vec_ty: Type = syn::parse_str("Vec<i32>").unwrap();
-/// let inner = extract_vec_inner_type(&vec_ty);
-/// assert_eq!(inner.to_token_stream().to_string(), "i32");
-///
-/// // Non-Vec types are returned unchanged (cloned)
-/// let simple_ty: Type = syn::parse_str("String").unwrap();
-/// let same = extract_vec_inner_type(&simple_ty);
-/// assert_eq!(same.to_token_stream().to_string(), "String");
-/// ```
-fn extract_vec_inner_type(ty: &syn::Type) -> syn::Type {
-    if let syn::Type::Path(type_path) = ty
-        && let Some(segment) = type_path.path.segments.last()
-        && segment.ident == "Vec"
-        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
-        && let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first()
-    {
-        return inner_ty.clone();
-    }
-
-    ty.clone()
-}
 
 /// Generate a TokenStream that implements the TableSchema trait for the provided table definition.
 ///
@@ -199,28 +165,14 @@ fn generate_relation(
     let key = &relation.foreign_key;
     let relation_name = &relation.relation_name;
     let field_type = &relation.ty;
+    let is_eager = relation.is_eager;
     let is_unique = match &relation.relation_type {
         RelationType::HasOne => true,
         RelationType::HasMany | RelationType::BelongsTo | RelationType::BelongsToMany => false,
     };
 
-    let check_type = if matches!(
-        relation.relation_type,
-        RelationType::HasMany | RelationType::BelongsToMany
-    ) {
-        extract_vec_inner_type(field_type)
-    } else {
-        field_type.clone()
-    };
-
-    let table_expr_type = if matches!(
-        relation.relation_type,
-        RelationType::HasMany | RelationType::BelongsToMany
-    ) {
-        &check_type
-    } else {
-        field_type
-    };
+    let check_type = extract_inner_type(field_type);
+    let table_expr_type = &check_type;
 
     let table_expr = match &relation.table {
         Some(t) => quote! { String::from(#t) },
@@ -249,20 +201,21 @@ fn generate_relation(
         };
     };
     let relation = quote! {
-        corrosion_orm_core::schema::relation::RelationModel::new(
-            #ty,
-            #table_expr,
-            String::from(#key),
-            <#check_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.name,
-            String::from(#relation_name),
-            String::from(#source_table),
-            corrosion_orm_core::schema::table::ColumnSchemaModel {
+        corrosion_orm_core::schema::relation::RelationModel::builder()
+            .relation_type(#ty)
+            .table(#table_expr)
+            .foreign_key(String::from(#key))
+            .target_key(<#check_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.name)
+            .relation_name(String::from(#relation_name))
+            .source_table(String::from(#source_table))
+            .is_eager(#is_eager)
+            .field(corrosion_orm_core::schema::table::ColumnSchemaModel {
                 name: String::from(#key),
                 is_nullable: false,
                 is_unique: #is_unique,
                 sql_type: <#check_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.ty
-            },
-        )
+            })
+            .build()
     };
     (check, relation)
 }
