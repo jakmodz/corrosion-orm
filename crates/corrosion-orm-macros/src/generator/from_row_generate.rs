@@ -1,12 +1,13 @@
+use crate::utils::extract_type_ident;
 use crate::{
     TableData,
     model::{Field, primary_key::PrimaryKeyField},
+    utils::extract_inner_type,
 };
 use corrosion_orm_core::schema::relation::RelationType;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Type;
-
 /// Generate a Rust `TokenStream` that implements `sqlx::FromRow` for the provided table struct.
 ///
 /// The generated implementation constructs the struct by reading the primary key and each
@@ -26,9 +27,10 @@ use syn::Type;
 /// ```
 pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
     let struct_ident = &table.ident;
+    let owner_pk_name = &table.primary_key.name;
+    let owner_pk_ty = &table.primary_key.ty;
 
     let pk_field_assign = generate_pk_field_assign(&table.primary_key);
-    // Note: table.fields already excludes the PK and relation fields (they are parsed separately)
     let field_assigns: Vec<TokenStream> = table.fields.iter().map(generate_field_assign).collect();
 
     let relation_field_assigns: Vec<TokenStream> = table
@@ -38,26 +40,72 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
             let field_name = syn::Ident::new(&rel.relation_name, proc_macro2::Span::call_site());
             let rel_ty = &rel.ty;
             let fk_name = &rel.foreign_key;
+            let fk_column_ident = syn::Ident::new(fk_name, proc_macro2::Span::call_site());
+
+
             match rel.relation_type {
-                RelationType::BelongsTo => {
-                    // For BelongsTo, read the FK column from the row and populate the
-                    // related entity's primary key so that load_relations can fetch it.
-                    quote! {
-                        #field_name: {
-                            let mut rel = #rel_ty::default();
-                            rel.set_id(row.try_get(#fk_name)?);
-                            rel
-                        },
+                RelationType::BelongsTo | RelationType::HasOne => {
+                    if !rel.is_eager {
+                        let related_ty = extract_inner_type(rel_ty);
+                        quote! {
+                            #field_name: {
+                                let mut lazy: #rel_ty = corrosion_orm_core::model::lazy::Lazy::new();
+                                let mut rel = <#related_ty>::default();
+                                rel.set_id(row.try_get(#fk_name)?);
+
+                                lazy.set_condition(
+                                    corrosion_orm_core::model::lazy::LazyCondition::ById(
+                                        corrosion_orm_core::query::query_type::Value::from(rel.get_id())
+                                    )
+                                );
+                                lazy
+                            },
+                        }
+                    } else {
+                        quote! {
+                            #field_name: {
+                                let mut rel = #rel_ty::default();
+                                rel.set_id(row.try_get(#fk_name)?);
+                                rel
+                            },
+                        }
                     }
                 }
-                _ => {
-                    quote! {
-                        #field_name: Default::default(),
+
+                RelationType::HasMany => {
+                    if !rel.is_eager {
+                        let child_ty = extract_inner_type(rel_ty);
+                        let child_ident = extract_type_ident(&child_ty)
+                            .expect("HasMany relation inner type must be a path type");
+                        let child_mod = syn::Ident::new(
+                            &child_ident.to_string().to_lowercase(),
+                            proc_macro2::Span::call_site(),
+                        );
+                        quote! {
+                            #field_name: {
+                                let mut lazy: #rel_ty = corrosion_orm_core::model::lazy_collection::LazyCollection::new();
+                                let owner_id: #owner_pk_ty = row.try_get(#owner_pk_name)?;
+                                lazy.set_condition(
+                                    corrosion_orm_core::model::lazy_collection::LazyCollectionCondition::ByForeignKey {
+                                        fk_column: #child_mod::Column::#fk_column_ident,
+                                        value: corrosion_orm_core::query::query_type::Value::from(owner_id),
+                                    }
+                                );
+                                lazy
+                            },
+                        }
+                    } else {
+                        quote! { #field_name: Default::default(), }
                     }
                 }
+
+                _ => quote! {
+                    #field_name: Default::default(),
+                },
             }
         })
         .collect();
+
     let pk_bound = type_bounds(&table.primary_key.ty);
     let field_bounds: Vec<TokenStream> = table.fields.iter().map(|f| type_bounds(&f.ty)).collect();
 

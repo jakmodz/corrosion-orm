@@ -18,53 +18,88 @@ pub struct RelationModel {
     pub field: ColumnSchemaModel,
     /// The table where the foreign key column exists
     pub source_table: String,
+    /// Whether this relation should be eager-loaded by default.
+    pub is_eager: bool,
 }
 
 impl RelationModel {
-    /// Creates a RelationModel from the provided relation metadata.
+    /// Creates a `RelationBuilder` used to construct a `RelationModel`.
     ///
-    /// The returned model stores the relation kind, related table and key names,
-    /// relation name, the source table, and the associated column schema.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use corrosion_orm_core::schema::{relation::RelationModel, relation::RelationType, table::ColumnSchemaModel};
-    /// use corrosion_orm_core::types::column_type::SqlType;
-    ///
-    /// let field = ColumnSchemaModel {
-    ///     name: "user_id".to_string(),
-    ///     is_nullable: false,
-    ///     is_unique: false,
-    ///     sql_type: SqlType::Integer,
-    /// };
-    /// let rel = RelationModel::new(
-    ///     RelationType::HasOne,
-    ///     "profiles".to_string(),
-    ///     "user_id".to_string(),
-    ///     "id".to_string(),
-    ///     "profile".to_string(),
-    ///     "users".to_string(),
-    ///     field,
-    /// );
-    /// ```
-    pub fn new(
-        relation_type: RelationType,
-        table: String,
-        foreign_key: String,
-        target_key: String,
-        relation_name: String,
-        source_table: String,
-        field: ColumnSchemaModel,
-    ) -> Self {
-        Self {
-            relation_type,
-            table,
-            foreign_key,
-            target_key,
-            relation_name,
-            source_table,
-            field,
+    /// Prefer the builder to avoid long argument lists and improve call-site
+    /// readability.
+    pub fn builder() -> RelationBuilder {
+        RelationBuilder::default()
+    }
+}
+
+/// Builder for `RelationModel`.
+#[derive(Debug, Clone, Default)]
+pub struct RelationBuilder {
+    relation_type: Option<RelationType>,
+    table: Option<String>,
+    foreign_key: Option<String>,
+    target_key: Option<String>,
+    relation_name: Option<String>,
+    field: Option<ColumnSchemaModel>,
+    /// The table where the foreign key column exists
+    source_table: Option<String>,
+    /// Whether this relation should be eager-loaded by default.
+    is_eager: Option<bool>,
+}
+
+impl RelationBuilder {
+    pub fn relation_type(mut self, t: RelationType) -> Self {
+        self.relation_type = Some(t);
+        self
+    }
+
+    pub fn table<S: Into<String>>(mut self, s: S) -> Self {
+        self.table = Some(s.into());
+        self
+    }
+
+    pub fn foreign_key<S: Into<String>>(mut self, s: S) -> Self {
+        self.foreign_key = Some(s.into());
+        self
+    }
+
+    pub fn target_key<S: Into<String>>(mut self, s: S) -> Self {
+        self.target_key = Some(s.into());
+        self
+    }
+
+    pub fn relation_name<S: Into<String>>(mut self, s: S) -> Self {
+        self.relation_name = Some(s.into());
+        self
+    }
+
+    pub fn field(mut self, f: ColumnSchemaModel) -> Self {
+        self.field = Some(f);
+        self
+    }
+
+    pub fn source_table<S: Into<String>>(mut self, s: S) -> Self {
+        self.source_table = Some(s.into());
+        self
+    }
+
+    pub fn is_eager(mut self, b: bool) -> Self {
+        self.is_eager = Some(b);
+        self
+    }
+
+    /// Build the `RelationModel`, consuming the builder. Panics if required fields
+    /// are missing.
+    pub fn build(self) -> RelationModel {
+        RelationModel {
+            relation_type: self.relation_type.expect("relation_type is required"),
+            table: self.table.expect("table is required"),
+            foreign_key: self.foreign_key.expect("foreign_key is required"),
+            target_key: self.target_key.expect("target_key is required"),
+            relation_name: self.relation_name.expect("relation_name is required"),
+            field: self.field.expect("field is required"),
+            source_table: self.source_table.expect("source_table is required"),
+            is_eager: self.is_eager.unwrap_or(false),
         }
     }
 }

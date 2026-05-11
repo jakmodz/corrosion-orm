@@ -3,10 +3,10 @@ use crate::model::{
     primary_key::{PrimaryKeyAttribute, PrimaryKeyField},
     relation::{BelongsToAttribute, HasManyAttribute, HasOneAttribute, RelationDefinition},
 };
+use crate::utils::type_is_ident;
 use corrosion_orm_core::schema::relation::RelationType;
 use std::collections::HashSet;
 use syn::{DeriveInput, Fields, spanned::Spanned};
-
 /// Builds a TableData value from a derive-input struct by extracting table metadata, columns, the single primary key, indexes (table- and field-level), and relation definitions.
 ///
 /// Returns a populated `TableData` containing `ident`, resolved `name`, parsed `fields`, the required `primary_key`, normalized `indexes`, and any `relations` discovered on fields. Errors if the input is not a struct, if no field is marked with `#[PrimaryKey]`, if index names collide, or if attribute/field parsing fails; such errors are returned as `syn::Error`.
@@ -118,6 +118,10 @@ macro_rules! parse_relation {
             let foreign_key = attr
                 .foreign_key
                 .unwrap_or_else(|| format!("{}_id", $field.ident.as_ref().unwrap()));
+            let mut is_eager = true;
+            if type_is_ident(&$field.ty, "Lazy") || type_is_ident(&$field.ty, "LazyCollection") {
+                is_eager = false;
+            }
             $relations.push(RelationDefinition {
                 relation_type: RelationType::$variant,
                 table: attr.table,
@@ -125,6 +129,7 @@ macro_rules! parse_relation {
                 relation_name: $field_name.clone(),
                 ty: $field.ty.clone(),
                 ident: $field.ident.clone().unwrap(),
+                is_eager,
             });
             continue;
         }
@@ -185,6 +190,7 @@ fn parse_fields(
             primary_key = Some(PrimaryKeyField::from((&col_attr, pk_attr, &*field)));
             continue;
         }
+
         parse_relation!(HasOne, HasOneAttribute, field, relations, field_name);
         parse_relation!(HasMany, HasManyAttribute, field, relations, field_name);
         parse_relation!(BelongsTo, BelongsToAttribute, field, relations, field_name);
@@ -509,6 +515,42 @@ mod tests {
                 .unwrap_err()
                 .to_string()
                 .contains("Field must be named")
+        );
+    }
+    #[test]
+    fn lazy_relation() {
+        let mut input: DeriveInput = parse_quote! {
+            #[Table(name = "users")]
+            struct User {
+                #[Column(name = "id")]
+                #[PrimaryKey]
+                id: i32,
+                #[HasOne]
+                email: Lazy<User>,
+            }
+        };
+        let table = parse_model(&mut input).unwrap();
+        assert!(
+            !table.relations.first().unwrap().is_eager,
+            "is_eager must be false"
+        );
+    }
+    #[test]
+    fn eager_relation() {
+        let mut input: DeriveInput = parse_quote! {
+            #[Table(name = "users")]
+            struct User {
+                #[Column(name = "id")]
+                #[PrimaryKey]
+                id: i32,
+                #[HasOne]
+                email: User,
+            }
+        };
+        let table = parse_model(&mut input).unwrap();
+        assert!(
+            table.relations.first().unwrap().is_eager,
+            "is_eager must be true"
         );
     }
 }
