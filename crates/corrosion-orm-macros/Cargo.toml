@@ -16,3 +16,4 @@ anyhow = {workspace = true}
 corrosion-orm-core = {path = "../corrosion-orm-core"}
 chrono = {workspace = true}
 regex = {workspace = true}
+proc-macro-crate = "3.5.0"

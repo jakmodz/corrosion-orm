@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        Post, init_sqlite,
+        AutoIncrementModel, Post, init_sqlite,
         test_entities::{Teacher, User},
     };
     use corrosion_orm_core::prelude::*;
@@ -175,6 +175,24 @@ mod tests {
         teacher.save(&mut conn).await?;
         let saved_teacher = Teacher::get_by_id(1, &mut conn).await?;
         assert_eq!(saved_teacher.unwrap().posts.len(), 5);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_save_auto_increment() -> Result<(), CorrosionOrmError> {
+        let driver = init_sqlite().await;
+        let mut conn = driver.acquire_conn().await?;
+        let auto_increment_model = AutoIncrementModel {
+            id: 0,
+            name: "warkusz".to_string(),
+        };
+        let saved_model = auto_increment_model.save(&mut conn).await?;
+        assert_eq!(saved_model.id, 1);
+        let auto_increment_model = AutoIncrementModel {
+            id: 1,
+            name: "warkusz".to_string(),
+        };
+        let saved_model = auto_increment_model.save(&mut conn).await?;
+        assert_eq!(saved_model.id, 1);
         Ok(())
     }
 }

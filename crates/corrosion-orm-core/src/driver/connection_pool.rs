@@ -4,7 +4,7 @@ use crate::{
     dialect::sql_dialect::SqlDialect,
     driver::{connection::Conn, executor::Executor, transaction::Transaction},
     error::CorrosionOrmError,
-    query::query_type::QueryContext,
+    query::query_type::{QueryContext, Value},
 };
 use std::ops::{Deref, DerefMut};
 
@@ -125,6 +125,10 @@ impl<P: ConnectionPool> Executor for ConnectionGuard<P> {
             }
         }
         result
+    }
+
+    async fn get_last_id(&mut self) -> Result<Value, CorrosionOrmError> {
+        self.conn.get_last_id().await
     }
 }
 /// A connection pool for managing database connections.

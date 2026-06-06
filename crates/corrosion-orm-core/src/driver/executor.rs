@@ -1,7 +1,9 @@
 use sqlx::FromRow;
 
 use crate::{
-    dialect::sql_dialect::SqlDialect, error::CorrosionOrmError, query::query_type::QueryContext,
+    dialect::sql_dialect::SqlDialect,
+    error::CorrosionOrmError,
+    query::query_type::{QueryContext, Value},
 };
 
 /// Executes SQL queries with a database entity.
@@ -20,6 +22,6 @@ pub trait LocalExecutor: Sized + Send + Sync {
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Option<E>, CorrosionOrmError>;
-
+    async fn get_last_id(&mut self) -> Result<Value, CorrosionOrmError>;
     fn get_dialect(&self) -> &dyn SqlDialect;
 }

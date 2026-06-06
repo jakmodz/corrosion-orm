@@ -57,6 +57,19 @@ impl<'col> From<&'col TableSchemaModel> for Insert<'col> {
 }
 impl ToSql for Insert<'_> {
     fn to_sql(&self, ctx: &mut super::query_type::QueryContext, dialect: &dyn SqlDialect) {
+        if self.values.is_empty() {
+            if self.columns.is_empty() {
+                ctx.sql
+                    .push_str(&dialect.generate_empty_insert(&self.table));
+            } else {
+                ctx.sql.push_str(&format!(
+                    "INSERT INTO {} ({}) VALUES()",
+                    self.table,
+                    self.columns.join(", "),
+                ));
+            }
+            return;
+        }
         ctx.sql.push_str(&format!(
             "INSERT INTO {} ({}) VALUES(",
             self.table,

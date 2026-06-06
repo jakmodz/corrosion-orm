@@ -1,8 +1,8 @@
 [workspace]
-members = ["crates/corrosion-orm",
+members = ["crates/corrosion-orm-cli",
     "crates/corrosion-orm-core",
     "crates/corrosion-orm-macros",
-    "crates/corrosion-orm-test"
+    "crates/corrosion-orm-test",
 ]
 resolver = "3"
 
@@ -19,3 +19,4 @@ tokio = { version = "1.50.0", features = ["full"] }
 log = "0.4.29"
 regex = "1.12.3"
 once_cell = "1.21.4"
+trait-variant = "0.1.2"

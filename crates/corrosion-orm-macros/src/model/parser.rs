@@ -309,8 +309,8 @@ mod tests {
         let mut input: DeriveInput = parse_quote! {
             #[Table(name = "users")]
             struct User {
-                #[Column(name = "id")]
-                #[PrimaryKey(generation_strategy = {auto_increment})]
+                #[Column(name = "id", generation_strategy = {auto_increment})]
+                #[PrimaryKey]
                 id: i32,
                 #[Column(name = "username", unique)]
                 username: String,
@@ -322,6 +322,25 @@ mod tests {
         assert_eq!(
             table_data.primary_key.generation_strategy.unwrap(),
             GenerationType::AutoIncrement
+        );
+    }
+    #[test]
+    fn test_field_level_generation_strategy_parsing() {
+        use corrosion_orm_core::types::generation_strategy::GenerationType;
+        let mut input: DeriveInput = parse_quote! {
+            #[Table(name = "users")]
+            struct User {
+                #[Column(name = "id")]
+                #[PrimaryKey]
+                id: i32,
+                #[Column(name = "num", generation_strategy = {auto_increment})]
+                num: i32,
+            }
+        };
+        let table_data = parse_model(&mut input).unwrap();
+        assert_eq!(
+            table_data.fields[0].generation_strategy.as_ref().unwrap(),
+            &GenerationType::AutoIncrement
         );
     }
 

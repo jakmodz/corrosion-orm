@@ -23,7 +23,8 @@ impl From<(&ColumnAttribute, PrimaryKeyAttribute, &syn::Field)> for PrimaryKeyFi
     ///
     /// The resulting PrimaryKeyField uses the column attribute's name if present; otherwise it uses
     /// the syn field's identifier. The field's type and identifier are copied from the syn::Field,
-    /// and the primary key generation strategy is taken from the PrimaryKeyAttribute.
+    /// and the primary key generation strategy is taken from the PrimaryKeyAttribute (falling back
+    /// to the ColumnAttribute when provided there).
     ///
     /// # Examples
     ///
@@ -46,11 +47,14 @@ impl From<(&ColumnAttribute, PrimaryKeyAttribute, &syn::Field)> for PrimaryKeyFi
         } else {
             col_attr.name.clone()
         };
+        let generation_strategy = pk_attr
+            .generation_strategy
+            .or(col_attr.generation_strategy.clone());
         PrimaryKeyField {
             iden: syn_field.ident.clone().unwrap(),
             name: field_name,
             ty: syn_field.ty.clone(),
-            generation_strategy: pk_attr.generation_strategy,
+            generation_strategy,
         }
     }
 }

@@ -29,6 +29,7 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
     let struct_ident = &table.ident;
     let owner_pk_name = &table.primary_key.name;
     let owner_pk_ty = &table.primary_key.ty;
+    let orm = super::orm_crate_path();
 
     let pk_field_assign = generate_pk_field_assign(&table.primary_key);
     let field_assigns: Vec<TokenStream> = table.fields.iter().map(generate_field_assign).collect();
@@ -49,15 +50,15 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
                         let related_ty = extract_inner_type(rel_ty);
                         quote! {
                             #field_name: {
-                                let mut lazy: #rel_ty = corrosion_orm_core::model::lazy::Lazy::new();
+                                let mut lazy: #rel_ty = #orm::model::lazy::Lazy::new();
                                 let mut rel = <#related_ty>::default();
                                 rel.set_id(row.try_get(#fk_name)?);
 
                                 lazy.set_condition(
-                                    corrosion_orm_core::model::lazy::LazyCondition::ById(
-                                        corrosion_orm_core::query::query_type::Value::from(rel.get_id())
-                                    )
-                                );
+                                    #orm::model::lazy::LazyCondition::ById(
+                                                                            #orm::query::query_type::Value::from(rel.get_id())
+                                                                        )
+                                                                    );
                                 lazy
                             },
                         }
@@ -83,12 +84,12 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
                         );
                         quote! {
                             #field_name: {
-                                let mut lazy: #rel_ty = corrosion_orm_core::model::lazy_collection::LazyCollection::new();
+                                let mut lazy: #rel_ty = #orm::model::lazy_collection::LazyCollection::new();
                                 let owner_id: #owner_pk_ty = row.try_get(#owner_pk_name)?;
                                 lazy.set_condition(
                                     corrosion_orm_core::model::lazy_collection::LazyCollectionCondition::ByForeignKey {
                                         fk_column: #child_mod::Column::#fk_column_ident,
-                                        value: corrosion_orm_core::query::query_type::Value::from(owner_id),
+                                        value: #orm::query::query_type::Value::from(owner_id),
                                     }
                                 );
                                 lazy
@@ -106,17 +107,21 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
         })
         .collect();
 
-    let pk_bound = type_bounds(&table.primary_key.ty);
-    let field_bounds: Vec<TokenStream> = table.fields.iter().map(|f| type_bounds(&f.ty)).collect();
+    let pk_bound = type_bounds(&orm, &table.primary_key.ty);
+    let field_bounds: Vec<TokenStream> = table
+        .fields
+        .iter()
+        .map(|f| type_bounds(&orm, &f.ty))
+        .collect();
 
     quote! {
-        impl<'r, R: sqlx::Row> sqlx::FromRow<'r, R> for #struct_ident
+        impl<'r, R: #orm::sqlx::Row> #orm::sqlx::FromRow<'r, R> for #struct_ident
         where
-            for<'c> &'c str: sqlx::ColumnIndex<R>,
+            for<'c> &'c str: #orm::sqlx::ColumnIndex<R>,
             #pk_bound
             #(#field_bounds)*
         {
-            fn from_row(row: &'r R) -> sqlx::Result<Self> {
+            fn from_row(row: &'r R) -> #orm::sqlx::Result<Self> {
                 Ok(Self {
                     #pk_field_assign
                     #(#field_assigns)*
@@ -127,10 +132,10 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
     }
 }
 
-fn type_bounds(ty: &Type) -> TokenStream {
+fn type_bounds(orm: &TokenStream, ty: &Type) -> TokenStream {
     quote! {
-        #ty: sqlx::decode::Decode<'r, R::Database>,
-        #ty: sqlx::types::Type<R::Database>,
+        #ty: #orm::sqlx::decode::Decode<'r, R::Database>,
+        #ty: #orm::sqlx::types::Type<R::Database>,
     }
 }
 

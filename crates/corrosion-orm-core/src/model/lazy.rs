@@ -152,6 +152,22 @@ impl<F> Lazy<F> {
         }
     }
 
+    /// Attempts to retrieve the relation ID value synchronously.
+    ///
+    /// Returns `Some(Value)` if the relation is already loaded or has an ID set.
+    /// Returns `None` if the relation is `Pending` (needs saving) or has no ID.
+    pub fn get_id_value_sync<FMap>(&self, id_to_value: FMap) -> Option<Value>
+    where
+        FMap: Fn(&F) -> Value,
+    {
+        match &self.step {
+            LazyStep::NotLoaded(Some(LazyCondition::ById(v))) => Some(v.clone()),
+            LazyStep::NotLoaded(None) => None,
+            LazyStep::Pending(_) => None,
+            LazyStep::Loaded(entity) => Some(id_to_value(entity)),
+        }
+    }
+
     pub async fn load<E: Executor>(&mut self, db: &mut E) -> Result<&mut F, CorrosionOrmError>
     where
         F: Repo<E>

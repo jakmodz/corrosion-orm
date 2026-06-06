@@ -31,6 +31,7 @@
 //TDOO : docs
 pub mod delete;
 pub mod insert;
+pub mod insert_plan;
 pub mod join;
 pub mod order_by;
 pub mod query_type;
@@ -41,6 +42,7 @@ pub mod where_clause;
 
 pub use delete::Delete;
 pub use insert::Insert;
+pub use insert_plan::{InsertPlan, InsertPlanGenerator};
 pub use join::{Join, JoinType};
 pub use order_by::{OrderBy, OrderDirection};
 pub use select::Select;

@@ -64,6 +64,8 @@ pub struct ColumnSchemaModel {
     pub is_unique: bool,
     /// Type of the column
     pub sql_type: SqlType,
+    /// Generation type of the column
+    pub generation_type: Option<GenerationType>,
 }
 pub struct IndexModel {
     /// Name of the index
@@ -123,6 +125,7 @@ impl TableSchemaModel {
             is_nullable: false,
             is_unique: false,
             sql_type: SqlType::Integer,
+            generation_type: None,
         });
         self
     }
@@ -184,7 +187,14 @@ impl TableSchemaModel {
                     table_name: self.name.clone(),
                 });
             }
-
+            if let Some(GenerationType::AutoIncrement) = &col.generation_type
+                && col.sql_type != SqlType::Integer
+            {
+                return Err(SchemaValidationError::AutoIncrementRequiresInteger(
+                    self.name.clone(),
+                    col.sql_type.clone(),
+                ));
+            }
             if !seen.insert(col.name.clone()) {
                 if col.name == pk.name {
                     return Err(SchemaValidationError::PrimaryKeyNameCollidesWithColumn {
@@ -259,12 +269,14 @@ impl ColumnSchemaModel {
         is_nullable: bool,
         is_unique: bool,
         sql_type: SqlType,
+        generation_type: Option<GenerationType>,
     ) -> Self {
         Self {
             name,
             is_nullable,
             is_unique,
             sql_type,
+            generation_type,
         }
     }
 }

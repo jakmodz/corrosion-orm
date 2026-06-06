@@ -16,4 +16,4 @@ log = { workspace = true, optional = true }
 tokio = { workspace = true }
 regex = {workspace= true}
 once_cell = { workspace = true }
-trait-variant = "0.1.2"
+trait-variant = { workspace = true }
