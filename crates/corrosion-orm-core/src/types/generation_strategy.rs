@@ -1,4 +1,6 @@
-#[derive(deluxe::ParseMetaItem, Debug, PartialEq, Eq, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(deluxe::ParseMetaItem, Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 /// Represents the generation strategy for a column.
 pub enum GenerationType {
     /// Automatically generates a unique identifier for each row.

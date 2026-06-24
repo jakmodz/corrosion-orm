@@ -1,34 +1,45 @@
-mod migration;
-mod migraton_registry;
-use std::path::Path;
+pub mod migration;
+use std::path::PathBuf;
 
+use crate::migration::init_migrations;
+use anyhow::Result;
 use clap::{Parser, Subcommand};
+
 #[derive(Parser)]
 struct Cli {
+    #[arg(global = true, long)]
+    database_url: Option<String>,
     #[command(subcommand)]
     command: Command,
 }
+
 #[derive(Subcommand)]
 enum Command {
     #[command(subcommand)]
     Migration(MigrationCommand),
 }
+
 #[derive(Subcommand)]
 enum MigrationCommand {
-    Init { path: String },
+    /// Initialize rust migration module directory
+    Init {
+        #[arg(default_value = "migrations")]
+        path: PathBuf,
+    },
 }
-fn init_migration(path: &str) -> anyhow::Result<()> {
-    let path = Path::new(path);
-    // init entire migration "project" thing look at seaorm
-    //
-    Ok(())
-}
-fn main() -> anyhow::Result<()> {
+
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
+
     match cli.command {
         Command::Migration(cmd) => match cmd {
-            MigrationCommand::Init { path } => init_migration(&path)?,
+            MigrationCommand::Init { path } => {
+                init_migrations(&path).await?;
+                println!("Initialized rust migrations at '{}'", path.display());
+            }
         },
     }
+
     Ok(())
 }

@@ -31,8 +31,12 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
     let owner_pk_ty = &table.primary_key.ty;
     let orm = super::orm_crate_path();
 
-    let pk_field_assign = generate_pk_field_assign(&table.primary_key);
-    let field_assigns: Vec<TokenStream> = table.fields.iter().map(generate_field_assign).collect();
+    let pk_field_assign = generate_pk_field_assign(&orm, &table.primary_key);
+    let field_assigns: Vec<TokenStream> = table
+        .fields
+        .iter()
+        .map(|f| generate_field_assign(&orm, f))
+        .collect();
 
     let relation_field_assigns: Vec<TokenStream> = table
         .relations
@@ -56,9 +60,9 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
 
                                 lazy.set_condition(
                                     #orm::model::lazy::LazyCondition::ById(
-                                                                            #orm::query::query_type::Value::from(rel.get_id())
-                                                                        )
-                                                                    );
+                                            #orm::query::query_type::Value::from(rel.get_id())
+                                        )
+                                    );
                                 lazy
                             },
                         }
@@ -139,7 +143,7 @@ fn type_bounds(orm: &TokenStream, ty: &Type) -> TokenStream {
     }
 }
 
-fn generate_pk_field_assign(pk: &PrimaryKeyField) -> TokenStream {
+fn generate_pk_field_assign(_orm: &TokenStream, pk: &PrimaryKeyField) -> TokenStream {
     let field_ident = &pk.iden;
     let col_name = &pk.name;
     quote! {
@@ -147,7 +151,7 @@ fn generate_pk_field_assign(pk: &PrimaryKeyField) -> TokenStream {
     }
 }
 
-fn generate_field_assign(field: &Field) -> TokenStream {
+fn generate_field_assign(_orm: &TokenStream, field: &Field) -> TokenStream {
     let field_ident = &field.iden;
     let col_name = &field.name;
     quote! {

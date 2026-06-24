@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
@@ -41,6 +42,7 @@ pub trait TableSchema {
     fn get_schema() -> TableSchemaModel;
 }
 /// Struct representing the table model
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct TableSchemaModel {
     /// Name of the table
     pub name: String,
@@ -54,7 +56,7 @@ pub struct TableSchemaModel {
     pub relations: Vec<RelationModel>,
 }
 /// Struct representing the column schema model
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ColumnSchemaModel {
     /// Name of the column
     pub name: String,
@@ -67,6 +69,7 @@ pub struct ColumnSchemaModel {
     /// Generation type of the column
     pub generation_type: Option<GenerationType>,
 }
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct IndexModel {
     /// Name of the index
     pub name: String,
@@ -76,6 +79,7 @@ pub struct IndexModel {
     pub unique: bool,
 }
 /// Struct representing the primary key model
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrimaryKeyModel {
     /// Name of the primary key
     pub name: String,

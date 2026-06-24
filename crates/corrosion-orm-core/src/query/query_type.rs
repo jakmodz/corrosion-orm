@@ -1,4 +1,5 @@
 use crate::dialect::sql_dialect::SqlDialect;
+use crate::query::{create::Create, to_sql::ToSql};
 use crate::schema::table::TableSchemaModel;
 
 /// Enum representing a SQL value of various types.
@@ -154,7 +155,16 @@ impl QueryContext {
     /// * `dialect` - The SQL dialect to use for generating the DDL.
     pub fn from_model(model: TableSchemaModel, dialect: &dyn SqlDialect) -> Self {
         let mut ctx = Self::new();
-        ctx.sql = dialect.generate_ddl(&model).unwrap();
+        let create = Create::new(model);
+        create.to_sql(&mut ctx, dialect);
+        ctx
+    }
+
+    /// Creates a new `QueryContext` from a `TableSchemaModel` using `CREATE TABLE IF NOT EXISTS`.
+    pub fn from_model_if_not_exists(model: TableSchemaModel, dialect: &dyn SqlDialect) -> Self {
+        let mut ctx = Self::new();
+        let create = Create::new(model).if_not_exists();
+        create.to_sql(&mut ctx, dialect);
         ctx
     }
 }

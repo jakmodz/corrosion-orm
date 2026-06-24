@@ -5,11 +5,11 @@ use corrosion_orm::{Model, sqlx::types::chrono};
 pub struct MigrationRegistry {
     #[Column(generation_strategy = {auto_increment})]
     #[PrimaryKey]
-    id: i64,
+    pub id: i64,
     #[Column(name = "migration_name")]
-    name: String,
+    pub name: String,
     #[Column(name = "applied_at")]
-    applied_at: chrono::NaiveDateTime,
+    pub applied_at: chrono::NaiveDateTime,
 }
 
 impl MigrationRegistry {

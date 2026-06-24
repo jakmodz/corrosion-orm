@@ -58,7 +58,7 @@ mod tests {
         let post = Post {
             id: 1,
             teacher_id: 20,
-            user: user,
+            user,
         };
         let values = post.get_insert_values();
         let plan = post.generate_insert_plan(values);

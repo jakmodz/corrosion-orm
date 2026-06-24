@@ -41,7 +41,7 @@ pub mod prelude {
     pub use crate::model::{Lazy, LazyCollection};
     pub use crate::query::*;
     pub use crate::query::{
-        Delete, Insert, Select, Update,
+        Create, Delete, Insert, Select, Update,
         query_type::{QueryContext, Value},
         to_sql::ToSql,
     };

@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::schema::table::ColumnSchemaModel;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RelationType {
     HasOne,
     HasMany,
@@ -8,7 +10,7 @@ pub enum RelationType {
     BelongsToMany,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RelationModel {
     pub relation_type: RelationType,
     pub table: String,

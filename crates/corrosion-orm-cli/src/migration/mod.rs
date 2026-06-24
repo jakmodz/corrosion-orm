@@ -1,1 +1,2 @@
-mod migration;
+mod generator;
+pub use generator::init_migrations;
