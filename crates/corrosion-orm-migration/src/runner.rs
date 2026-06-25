@@ -24,7 +24,9 @@ pub async fn up<M: MigratorTrait>(
     steps: Option<usize>,
 ) -> Result<usize> {
     ensure_registry_table(db).await?;
-
+    if steps == Some(0) {
+        return Ok(0);
+    }
     let applied = db.fetch_applied_migration_names().await?;
     let applied_set: HashSet<String> = applied.into_iter().collect();
 
@@ -54,7 +56,9 @@ pub async fn down<M: MigratorTrait>(
     steps: Option<usize>,
 ) -> Result<usize> {
     ensure_registry_table(db).await?;
-
+    if steps == Some(0) {
+        return Ok(0);
+    }
     let applied = db.fetch_applied_migration_names().await?;
     if applied.is_empty() {
         return Ok(0);
