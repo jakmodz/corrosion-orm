@@ -4,20 +4,20 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
 pub struct ModelsSnapshot {
-    crated_at: chrono::DateTime<Local>,
+    created_at: chrono::DateTime<Local>,
     models: Vec<TableSchemaModel>,
 }
 
 impl ModelsSnapshot {
     pub fn new(models: Vec<TableSchemaModel>) -> Self {
         Self {
-            crated_at: chrono::Local::now(),
+            created_at: chrono::Local::now(),
             models,
         }
     }
 
     pub fn created_at(&self) -> &chrono::DateTime<Local> {
-        &self.crated_at
+        &self.created_at
     }
 
     pub fn models(&self) -> &[TableSchemaModel] {
