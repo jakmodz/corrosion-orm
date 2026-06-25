@@ -7,7 +7,7 @@ version = "0.1.0"
 anyhow = "1"
 async-trait = "0.1"
 tokio = { version = "1", features = ["full"] }
-corrosion-orm = { path = "../crates/corrosion-orm", features = ["sqlite"] }
-corrosion-orm-migration = { path = "../crates/corrosion-orm-migration" }
+corrosion-orm = { path = "", features = ["sqlite"] }
+corrosion-orm-migration = { path = "" }
 
 [workspace]
