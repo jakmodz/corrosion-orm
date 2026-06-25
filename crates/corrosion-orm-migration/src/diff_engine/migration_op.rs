@@ -205,6 +205,10 @@ pub(crate) fn op_to_sql(op: &MigrationOp, dialect: &dyn SqlDialect) -> String {
                 ctx.sql.push_str(&format!(
                     "-- TODO: make {table}.{column} AUTO_INCREMENT (not supported by SQLite)"
                 ));
+            } else if changes.auto_increment == Some(false) {
+                ctx.sql.push_str(&format!(
+                    "-- TODO: make {table}.{column} NOT AUTO_INCREMENT (not supported by SQLite)"
+                ));
             }
         }
 
