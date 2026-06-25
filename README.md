@@ -8,7 +8,8 @@ The primary goal of this project is to explore and deeply understand advanced Ru
 * Writing custom **Procedural Macros** (`syn`, `quote`, `proc-macro2`).
 * Managing asynchronous database connections with `tokio`.
 * Designing fluent, type-safe API boundaries and Query Builders.
-
+* Migrations done with a CLI tool.
+*
 ---
 
 ##  Features
@@ -19,25 +20,24 @@ The primary goal of this project is to explore and deeply understand advanced Ru
 * **SQLite Driver:** Contains a custom driver implementation for SQLite to handle raw database interactions.
 * **Connection Pooling:** Implements a basic async connection pool to manage database connections efficiently.
 * **Transactions:** Support for wrapping queries in SQL transactions.
+* **Database Migrations:** A CLI tool for managing database schema migrations.
 
 ##  Project Structure
 
 The project is structured as a Cargo workspace to keep concerns cleanly separated:
-
+* [`corrosion-orm`](crates/corrosion-orm/): The main ORM crate. Re-exports all other crates for convenience.
 * [`corrosion-orm-core`](crates/corrosion-orm-core/): The heart of the ORM. Contains the driver traits, query builder, schema definitions, and the backend implementations.
 * [`corrosion-orm-macros`](crates/corrosion-orm-macros/): The procedural macros crate. It parses Rust structs and attributes using `syn` and `deluxe` to generate SQL mapping code.
 * [`corrosion-orm-test`](crates/corrosion-orm-test/): Integration tests that ensure the core logic and macro generations work correctly together.
+* [`corrosion-orm-cli`](crates/corrosion-orm-cli/): A command-line interface for initializing migrations.
+* [`corrosion-orm-migrations`](crates/corrosion-orm-migrations/): A crate for managing database migrations.
 
 ## Example
 
 Here is an example of what the API looks like when using the ORM:
 
 ```rust
-use corrosion_orm_macros::Model;
-use corrosion_orm_core::driver::sqlite_driver::SqliteDriver;
-use corrosion_orm_core::driver::connection_pool::ConnectionPool;
-use corrosion_orm_core::query::select::Select;
-
+use corrosion_orm::prelude::*;
 
 // 1. Define model using the custom derive macro
 #[derive(Model,Debug)]
