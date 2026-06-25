@@ -9,7 +9,13 @@ pub async fn init_migrations(path: &Path) -> Result<()> {
 async fn render_mod_rs(path: &Path) -> Result<()> {
     fn write_resource(path: &Path, filename: &str, contents: &str) -> Result<()> {
         let out = path.join(filename);
-        fs::write(&out, contents).with_context(|| format!("failed to write {}", out.display()))?;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&out)
+            .with_context(|| format!("refusing to overwrite {}", out.display()))?;
+        std::io::Write::write_all(&mut file, contents.as_bytes())
+            .with_context(|| format!("failed to write {}", out.display()))?;
         Ok(())
     }
 
