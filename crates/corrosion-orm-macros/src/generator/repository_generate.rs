@@ -79,12 +79,11 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
     );
 
     let pk_ident = &table.primary_key.iden;
-    let field_idents: Vec<_> = table.fields.iter().map(|f| &f.iden).collect();
     let pk_column_variant =
         syn::Ident::new(&table.primary_key.name, proc_macro2::Span::call_site());
 
-    let mut relation_values_push = Vec::new();
-    let mut lazy_relation_values_push = Vec::new();
+    let orm = super::orm_crate_path();
+
     let mut load_relations_impl = Vec::new();
     let mut cascade_save_before_impl = Vec::new();
     let mut cascade_save_after_impl = Vec::new();
@@ -100,30 +99,11 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
         let fk_column = syn::Ident::new(fk_name_str, proc_macro2::Span::call_site());
 
         if !rel.is_eager {
-            match rel.relation_type {
-                RelationType::HasOne | RelationType::BelongsTo => {
-                    lazy_relation_values_push.push(quote! {
-                        let rel_value = self.#rel_ident
-                            .resolve_relation_id_value(
-                                db,
-                                |e| corrosion_orm_core::query::query_type::Value::from(e.get_id())
-                            )
-                            .await?
-                            .ok_or(corrosion_orm_core::driver::error::DriverError::NotFound)?;
-                        values.push(rel_value);
-                    });
-                }
-                RelationType::HasMany | RelationType::BelongsToMany => {}
-            }
             continue;
         }
 
         match rel.relation_type {
             RelationType::HasOne | RelationType::BelongsTo => {
-                relation_values_push.push(quote! {
-                    values.push(corrosion_orm_core::query::query_type::Value::from(self.#rel_ident.get_id()));
-                });
-
                 cascade_save_before_impl.push(quote! {
                     let #rel_ident = self.#rel_ident.save(db).await?;
                 });
@@ -133,7 +113,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 });
 
                 load_relations_impl.push(quote! {
-                    if let Some(loaded) = <#rel_ty as corrosion_orm_core::model::repository::Repo<Db>>::get_by_id(self.#rel_ident.get_id(), db).await? {
+                    if let Some(loaded) = <#rel_ty as #orm::model::repository::Repo<Db>>::get_by_id(self.#rel_ident.get_id(), db).await? {
                         self.#rel_ident = loaded;
                     }
                 });
@@ -165,7 +145,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 );
 
                 load_relations_impl.push(quote! {
-                    let mut __children = <#inner_ty as corrosion_orm_core::model::repository::Repo<Db>>::find()
+                    let mut __children = <#inner_ty as #orm::model::repository::Repo<Db>>::find()
                         .filter(#inner_mod_name::COLUMN.#fk_column.eq(self.get_id()))
                         .all(db)
                         .await?;
@@ -176,7 +156,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 });
 
                 cascade_delete_before_impl.push(quote! {
-                    let __children = <#inner_ty as corrosion_orm_core::model::repository::Repo<Db>>::find()
+                    let __children = <#inner_ty as #orm::model::repository::Repo<Db>>::find()
                         .filter(#inner_mod_name::COLUMN.#fk_column.eq(entity_pk.clone()))
                         .all(db)
                     .await?;
@@ -190,23 +170,6 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
     quote! {
         impl #ident {
-            async fn get_values_from_self_with_db<Db: corrosion_orm_core::driver::executor::Executor>(
-                &self,
-                db: &mut Db,
-            ) -> Result<Vec<corrosion_orm_core::query::query_type::Value>, corrosion_orm_core::error::CorrosionOrmError> {
-                let mut values = Vec::new();
-                values.push(corrosion_orm_core::query::query_type::Value::from(self.#pk_ident.clone()));
-                #(
-                    values.push(corrosion_orm_core::query::query_type::Value::from(self.#field_idents.clone()));
-                )*
-
-                #(#relation_values_push)*
-
-                #(#lazy_relation_values_push)*
-
-                Ok(values)
-            }
-
             /// Returns the strongly-typed primary key for this entity
             pub fn get_id(&self) -> #primary_key_ty {
                 self.#pk_ident.clone()
@@ -217,57 +180,67 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 self.#pk_ident = value;
             }
 
-            pub fn get_primary_key_value(&self) -> corrosion_orm_core::query::query_type::Value {
-                corrosion_orm_core::query::query_type::Value::from(self.#pk_ident.clone())
+            pub fn get_primary_key_value(&self) -> #orm::query::query_type::Value {
+                #orm::query::query_type::Value::from(self.#pk_ident.clone())
             }
 
-            pub(crate) async fn load_relations<Db: corrosion_orm_core::driver::executor::Executor>(&mut self, db: &mut Db) -> Result<(), corrosion_orm_core::error::CorrosionOrmError> {
+            pub(crate) async fn load_relations<Db: #orm::driver::executor::Executor>(&mut self, db: &mut Db) -> Result<(), #orm::error::CorrosionOrmError> {
                 #(#load_relations_impl)*
                 Ok(())
             }
         }
 
-        impl<Db: corrosion_orm_core::driver::executor::Executor> corrosion_orm_core::model::repository::Repo<Db> for #ident {
+        impl<Db: #orm::driver::executor::Executor> #orm::model::repository::Repo<Db> for #ident {
             type PrimaryKey = #primary_key_ty;
             type Column = #mod_name::Column;
 
-            async fn save(&self, db: &mut Db) -> Result<Self, corrosion_orm_core::error::CorrosionOrmError> {
-                use corrosion_orm_core::query::to_sql::ToSql;
-                use corrosion_orm_core::schema::table::TableSchema;
-                use corrosion_orm_core::query::where_clause::WhereClause;
-                use corrosion_orm_core::query::query_type::QueryContext;
-
+            async fn save(&self, db: &mut Db) -> Result<Self, #orm::error::CorrosionOrmError> {
+                use #orm::query::to_sql::ToSql;
+                use #orm::schema::table::TableSchema;
+                use #orm::query::where_clause::WhereClause;
+                use #orm::query::query_type::QueryContext;
+                use #orm::query::InsertPlanGenerator;
                 let schema = Self::get_schema();
 
                 #(#cascade_save_before_impl)*
 
-                let check_query = corrosion_orm_core::query::select::Select::<#mod_name::Column>::from(&schema)
+                let check_query = #orm::query::select::Select::<#mod_name::Column>::from(&schema)
                     .where_clause(
                         WhereClause::eq(#mod_name::Column::#pk_column_variant, self.#pk_ident.clone()),
                 );
 
-                let mut ctx_control = corrosion_orm_core::query::query_type::QueryContext::new();
+                let mut ctx_control = #orm::query::query_type::QueryContext::new();
                 check_query.to_sql(&mut ctx_control, db.get_dialect());
                 let existing = db.fetch_optional::<Self>(&mut ctx_control).await?;
 
                 let mut ctx = QueryContext::new();
-                let values = self.get_values_from_self_with_db(db).await?;
                 if existing.is_none() {
-                    let mut insert_query = corrosion_orm_core::query::insert::Insert::from(&schema)
-                        .values(values);
-                    insert_query.to_sql(&mut ctx, db.get_dialect());
+                    let insert_values = self.get_insert_values_with_db(db).await?;
+                    let mut insert_plan = self.generate_insert_plan(insert_values);
+                    let insert = insert_plan.to_insert();
+                    insert.to_sql(&mut ctx, db.get_dialect());
                     db.execute_query(&mut ctx).await?;
                 } else {
-                    let mut update_query = corrosion_orm_core::query::update::Update::<#mod_name::Column>::from(&schema)
-                        .values(values)
+                    let update_values = self.get_all_values_with_db(db).await?;
+                    let mut update_query = #orm::query::update::Update::<#mod_name::Column>::from(&schema)
+                        .values(update_values)
                         .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, self.#pk_ident.clone()));
                     update_query.to_sql(&mut ctx, db.get_dialect());
                     db.execute_query(&mut ctx).await?;
                 }
 
+                use #orm::types::generation_strategy::GenerationType;
+
                 let mut fetch_ctx = QueryContext::new();
-                let fetch_query = corrosion_orm_core::query::select::Select::<#mod_name::Column>::from(&schema)
-                    .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, self.#pk_ident.clone()));
+                let last_id = if existing.is_none()
+                    && schema.primary_key.generation_type.is_some()
+                {
+                    db.get_last_id().await?
+                } else {
+                    #orm::query::query_type::Value::from(self.#pk_ident.clone())
+                };
+                let fetch_query = #orm::query::select::Select::<#mod_name::Column>::from(&schema)
+                    .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, last_id));
                 fetch_query.to_sql(&mut fetch_ctx, db.get_dialect());
 
                 let mut saved = db.fetch_optional::<Self>(&mut fetch_ctx).await?;
@@ -277,18 +250,18 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     #(#struct_update_impl)*
                     entity.load_relations(db).await?;
                 }
-                saved.ok_or(corrosion_orm_core::driver::error::DriverError::NotFound.into())
+                saved.ok_or(#orm::driver::error::DriverError::NotFound.into())
             }
 
-            async fn get_all(db: &mut Db) -> Result<Vec<Self>, corrosion_orm_core::error::CorrosionOrmError> {
-                use corrosion_orm_core::query::to_sql::ToSql;
-                use corrosion_orm_core::schema::table::TableSchema;
-                use corrosion_orm_core::query::where_clause::WhereClause;
-                use corrosion_orm_core::query::query_type::QueryContext;
+            async fn get_all(db: &mut Db) -> Result<Vec<Self>, #orm::error::CorrosionOrmError> {
+                use #orm::query::to_sql::ToSql;
+                use #orm::schema::table::TableSchema;
+                use #orm::query::where_clause::WhereClause;
+                use #orm::query::query_type::QueryContext;
 
                 let mut ctx = QueryContext::new();
                 let schema = Self::get_schema();
-                let query = corrosion_orm_core::query::select::Select::<#mod_name::Column>::from(&schema);
+                let query = #orm::query::select::Select::<#mod_name::Column>::from(&schema);
                 query.to_sql(&mut ctx, db.get_dialect());
                 let mut results = db.fetch_all::<Self>(&mut ctx).await?;
 
@@ -298,15 +271,15 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 Ok(results)
             }
 
-            async fn get_by_id(id: Self::PrimaryKey, db: &mut Db) -> Result<Option<Self>, corrosion_orm_core::error::CorrosionOrmError> {
-                use corrosion_orm_core::query::to_sql::ToSql;
-                use corrosion_orm_core::schema::table::TableSchema;
-                use corrosion_orm_core::query::where_clause::WhereClause;
-                use corrosion_orm_core::query::query_type::QueryContext;
+            async fn get_by_id(id: Self::PrimaryKey, db: &mut Db) -> Result<Option<Self>, #orm::error::CorrosionOrmError> {
+                use #orm::query::to_sql::ToSql;
+                use #orm::schema::table::TableSchema;
+                use #orm::query::where_clause::WhereClause;
+                use #orm::query::query_type::QueryContext;
 
                 let mut ctx = QueryContext::new();
                 let schema = Self::get_schema();
-                let query = corrosion_orm_core::query::select::Select::<#mod_name::Column>::from(&schema)
+                let query = #orm::query::select::Select::<#mod_name::Column>::from(&schema)
                     .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, id.clone()));
                 query.to_sql(&mut ctx, db.get_dialect());
                 let result = db.fetch_optional::<Self>(&mut ctx).await?;
@@ -319,12 +292,12 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 }
             }
 
-            async fn delete(self, db: &mut Db) -> Result<(), corrosion_orm_core::error::CorrosionOrmError> {
-                use corrosion_orm_core::query::to_sql::ToSql;
-                use corrosion_orm_core::schema::table::TableSchema;
-                use corrosion_orm_core::query::where_clause::WhereClause;
-                use corrosion_orm_core::query::query_type::QueryContext;
-                use corrosion_orm_core::query::delete::Delete;
+            async fn delete(self, db: &mut Db) -> Result<(), #orm::error::CorrosionOrmError> {
+                use #orm::query::to_sql::ToSql;
+                use #orm::schema::table::TableSchema;
+                use #orm::query::where_clause::WhereClause;
+                use #orm::query::query_type::QueryContext;
+                use #orm::query::delete::Delete;
 
                 let entity_pk = self.#pk_ident.clone();
 
@@ -344,12 +317,12 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 Ok(())
             }
 
-            fn find<'query>() -> corrosion_orm_core::model::Finder<'query, Self, Db, Self::Column> {
-                use corrosion_orm_core::query::select::Select;
-                use corrosion_orm_core::schema::table::TableSchema;
+            fn find<'query>() -> #orm::model::Finder<'query, Self, Db, Self::Column> {
+                use #orm::query::select::Select;
+                use #orm::schema::table::TableSchema;
                 let schema = Self::get_schema();
                 let select_query = Select::<#mod_name::Column>::from(schema);
-                corrosion_orm_core::model::Finder::new(select_query)
+                #orm::model::Finder::new(select_query)
             }
         }
     }

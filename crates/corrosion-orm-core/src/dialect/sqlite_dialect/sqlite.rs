@@ -1,4 +1,7 @@
-use crate::{dialect::sql_dialect::SqlDialect, types::column_type::SqlType};
+use crate::{
+    dialect::sql_dialect::SqlDialect,
+    types::{column_type::SqlType, generation_strategy::GenerationType},
+};
 
 pub struct SqliteDialect;
 
@@ -21,6 +24,16 @@ impl SqlDialect for SqliteDialect {
 
     fn bind_param(&self, _count: &usize) -> String {
         "?".to_string()
+    }
+
+    fn cast_generation_type(&self, generation_type: &GenerationType) -> String {
+        match generation_type {
+            GenerationType::AutoIncrement => " AUTOINCREMENT".to_string(),
+        }
+    }
+
+    fn generate_empty_insert(&self, table_name: &str) -> String {
+        format!("INSERT INTO {} DEFAULT VALUES;\n", table_name)
     }
 }
 

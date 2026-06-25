@@ -1,40 +1,44 @@
 use quote::quote;
 use syn::Type;
 
+use super::orm_crate_path;
 use crate::TableData;
 
 use corrosion_orm_core::types::column_type::{SqlType, ToSqlType};
 
 /// Maps SqlType (your IR) to column wrapper types
-fn sql_type_to_wrapper(sql_type: &SqlType) -> proc_macro2::TokenStream {
+fn sql_type_to_wrapper(
+    sql_type: &SqlType,
+    orm: &proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
     match sql_type {
         SqlType::Varchar(_) | SqlType::Text | SqlType::Char(_) => {
-            quote! { corrosion_orm_core::types::StringColumn }
+            quote! { #orm::types::StringColumn }
         }
 
         SqlType::Integer | SqlType::Float | SqlType::Double => {
-            quote! { corrosion_orm_core::types::NumericColumn }
+            quote! { #orm::types::NumericColumn }
         }
 
         SqlType::Boolean => {
-            quote! { corrosion_orm_core::types::BooleanColumn }
+            quote! { #orm::types::BooleanColumn }
         }
 
         SqlType::Date | SqlType::Timestamp => {
-            quote! { corrosion_orm_core::types::DateLikeColumn }
+            quote! { #orm::types::DateLikeColumn }
         }
 
         SqlType::Custom(name) => {
             let name_lower = name.to_lowercase();
             if name_lower.contains("date") || name_lower.contains("time") {
-                quote! { corrosion_orm_core::types::DateLikeColumn }
+                quote! { #orm::types::DateLikeColumn }
             } else if name_lower.contains("int")
                 || name_lower.contains("numeric")
                 || name_lower.contains("float")
             {
-                quote! { corrosion_orm_core::types::NumericColumn }
+                quote! { #orm::types::NumericColumn }
             } else {
-                quote! { corrosion_orm_core::types::StringColumn }
+                quote! { #orm::types::StringColumn }
             }
         }
     }
@@ -114,6 +118,7 @@ fn get_sql_type_from_rust_type(ty: &Type) -> SqlType {
 ///
 /// A `proc_macro2::TokenStream` containing the generated module definition for the entity.
 pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
+    let orm = orm_crate_path();
     let module_ident = syn::Ident::new(
         &table.ident.to_string().to_lowercase(),
         proc_macro2::Span::call_site(),
@@ -129,7 +134,7 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
     let column_name = &primary_key_field.name;
 
     let sql_type = get_sql_type_from_rust_type(&primary_key_field.ty);
-    let wrapper_type = sql_type_to_wrapper(&sql_type);
+    let wrapper_type = sql_type_to_wrapper(&sql_type, &orm);
     column_defs.push((field_name_lower, column_name.clone(), wrapper_type));
     for field in &table.fields {
         let field_name_lower =
@@ -137,7 +142,7 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
         let column_name = &field.name;
 
         let sql_type = get_sql_type_from_rust_type(&field.ty);
-        let wrapper_type = sql_type_to_wrapper(&sql_type);
+        let wrapper_type = sql_type_to_wrapper(&sql_type, &orm);
 
         column_defs.push((field_name_lower, column_name.clone(), wrapper_type));
     }
@@ -190,10 +195,10 @@ pub(crate) fn generate_entity(table: &TableData) -> proc_macro2::TokenStream {
                     #(#variants),*
                 }
 
-                impl corrosion_orm_core::types::ColumnTrait for Column {
+                impl #orm::types::ColumnTrait for Column {
                     fn table_name(&self) -> &'static str {
 
-                        <super::#struct_ident as corrosion_orm_core::schema::table::TableSchema>::get_table_name()
+                        <super::#struct_ident as #orm::schema::table::TableSchema>::get_table_name()
                     }
 
                     fn column_name(&self) -> &'static str {

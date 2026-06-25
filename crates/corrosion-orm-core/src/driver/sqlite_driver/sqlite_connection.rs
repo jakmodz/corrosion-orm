@@ -1,6 +1,6 @@
 #[allow(clippy::disallowed_types)]
 use sqlx::Connection;
-use sqlx::FromRow;
+use sqlx::{FromRow, Row};
 
 use crate::{
     dialect::{sql_dialect::SqlDialect, sqlite_dialect::sqlite::SqliteDialect},
@@ -14,6 +14,7 @@ macro_rules! bind_to_query {
             Value::String(s) => $query.bind(s),
             Value::Int(i) => $query.bind(i),
             Value::Int64(i) => $query.bind(i),
+            Value::Float(f) => $query.bind(f),
             Value::Bool(b) => $query.bind(b),
             Value::Date(d) => $query.bind(d),
             Value::DateTime(d) => $query.bind(d),
@@ -127,5 +128,15 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
             .await
             .map_err(DriverError::Sqlx)?;
         Ok(result)
+    }
+
+    async fn get_last_id(&mut self) -> Result<Value, CorrosionOrmError> {
+        let query = sqlx::query("SELECT last_insert_rowid()");
+        let result = query
+            .fetch_one(self.inner.as_mut())
+            .await
+            .map_err(DriverError::Sqlx)?;
+        let last_id = result.try_get(0).map_err(DriverError::Sqlx)?;
+        Ok(last_id)
     }
 }

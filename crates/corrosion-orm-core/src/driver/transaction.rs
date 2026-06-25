@@ -7,7 +7,7 @@ use crate::{
         executor::Executor,
     },
     error::CorrosionOrmError,
-    query::query_type::QueryContext,
+    query::query_type::{QueryContext, Value},
 };
 
 pub struct Transaction<P: ConnectionPool> {
@@ -97,6 +97,15 @@ impl<P: ConnectionPool> Executor for Transaction<P> {
     ) -> Result<Option<E>, CorrosionOrmError> {
         match self.conn.as_mut() {
             Some(conn) => conn.fetch_optional(ctx).await,
+            None => Err(CorrosionOrmError::DriverError(
+                DriverError::ConnectionClosed,
+            )),
+        }
+    }
+
+    async fn get_last_id(&mut self) -> Result<Value, CorrosionOrmError> {
+        match self.conn.as_mut() {
+            Some(conn) => conn.get_last_id().await,
             None => Err(CorrosionOrmError::DriverError(
                 DriverError::ConnectionClosed,
             )),

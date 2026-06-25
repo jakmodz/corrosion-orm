@@ -1,6 +1,7 @@
 //! SQL Query builders for constructing type-safe queries.
 //!
 //! This module provides a fluent builder API for constructing SQL queries:
+//! - [`Create`] - CREATE TABLE queries from schema models
 //! - [`Select`] - SELECT queries with WHERE and LIMIT support
 //! - [`Insert`] - INSERT queries with column/value binding
 //! - [`Update`] - UPDATE queries with WHERE conditions
@@ -29,8 +30,12 @@
 //! All query builders support implicit conversion from `&TableSchemaModel`,
 //! automatically extracting table name and columns:
 //TDOO : docs
+pub mod alter;
+pub mod create;
 pub mod delete;
+pub mod drop;
 pub mod insert;
+pub mod insert_plan;
 pub mod join;
 pub mod order_by;
 pub mod query_type;
@@ -39,8 +44,10 @@ pub mod to_sql;
 pub mod update;
 pub mod where_clause;
 
+pub use create::Create;
 pub use delete::Delete;
 pub use insert::Insert;
+pub use insert_plan::{InsertPlan, InsertPlanGenerator};
 pub use join::{Join, JoinType};
 pub use order_by::{OrderBy, OrderDirection};
 pub use select::Select;

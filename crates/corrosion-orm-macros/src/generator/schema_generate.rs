@@ -29,6 +29,7 @@ use quote::quote;
 /// ```
 pub fn generate_schema_impl(table: &TableData) -> TokenStream {
     let mut fields: Vec<TokenStream> = Vec::new();
+    let orm = super::orm_crate_path();
     for field in table.fields.iter() {
         fields.push(generate_field(field));
     }
@@ -52,12 +53,12 @@ pub fn generate_schema_impl(table: &TableData) -> TokenStream {
     let primary_key = generate_primary_key(&table.primary_key);
     quote! {
         #(#checks)*
-        impl corrosion_orm_core::schema::table::TableSchema for #struct_ident{
+        impl #orm::schema::table::TableSchema for #struct_ident{
             fn get_table_name()->&'static str{
                 #table_name
             }
-            fn get_schema()->corrosion_orm_core::schema::table::TableSchemaModel{
-                corrosion_orm_core::schema::table::TableSchemaModel{
+            fn get_schema()->#orm::schema::table::TableSchemaModel{
+                #orm::schema::table::TableSchemaModel{
                     name: String::from(#table_name),
                     fields: vec!(#(#fields),*),
                     indexes: vec!(#(#indexes),*),
@@ -70,37 +71,46 @@ pub fn generate_schema_impl(table: &TableData) -> TokenStream {
 }
 
 fn generate_field(field: &Field) -> TokenStream {
+    let orm = super::orm_crate_path();
     let field_name = &field.name;
     let field_type = &field.ty;
     let is_nullable = field.is_nullable;
     let is_unique = field.is_unique;
+    let generation_type = match &field.generation_strategy {
+        Some(GenerationType::AutoIncrement) => quote! {
+            Some(#orm::types::generation_strategy::GenerationType::AutoIncrement)
+        },
+        None => quote! { None },
+    };
     let sql_ty = match &field.column_definition {
         Some(ty) => quote! {
-            corrosion_orm_core::types::column_type::SqlType::Custom(String::from(#ty))
+            #orm::types::column_type::SqlType::Custom(String::from(#ty))
         },
         None => quote! {
-            <#field_type as corrosion_orm_core::types::column_type::ToSqlType>::to_sql_type(
+            <#field_type as #orm::types::column_type::ToSqlType>::to_sql_type(
                 &<#field_type>::default()
             )
         },
     };
     quote! {
-        corrosion_orm_core::schema::table::ColumnSchemaModel::new::<#field_type>(
+        #orm::schema::table::ColumnSchemaModel::new::<#field_type>(
             String::from(#field_name),
             #is_nullable,
             #is_unique,
-            #sql_ty
+            #sql_ty,
+            #generation_type
         )
     }
 }
 
 fn generate_index(index: &crate::model::IndexDefinition) -> TokenStream {
+    let orm = super::orm_crate_path();
     let index_name = &index.name;
     let index_fields: Vec<String> = index.fields.clone();
     let is_unique = index.unique;
 
     quote! {
-        corrosion_orm_core::schema::table::IndexModel {
+        #orm::schema::table::IndexModel {
             name: String::from(#index_name),
             fields: vec!(#(String::from(#index_fields)),*),
             unique: #is_unique,
@@ -109,16 +119,17 @@ fn generate_index(index: &crate::model::IndexDefinition) -> TokenStream {
 }
 
 fn generate_primary_key(primary_key: &PrimaryKeyField) -> TokenStream {
+    let orm = super::orm_crate_path();
     let key_name = &primary_key.name;
     let strategy = match &primary_key.generation_strategy {
         Some(GenerationType::AutoIncrement) => quote! {
-            Some(corrosion_orm_core::types::generation_strategy::GenerationType::AutoIncrement)
+            Some(#orm::types::generation_strategy::GenerationType::AutoIncrement)
         },
         None => quote! { None },
     };
     let field_type = &primary_key.ty;
     quote! {
-        corrosion_orm_core::schema::table::PrimaryKeyModel::new(
+        #orm::schema::table::PrimaryKeyModel::new(
             String::from(#key_name),
             #strategy,
             <#field_type>::default()
@@ -149,16 +160,17 @@ fn generate_relation(
     relation_index: usize,
     struct_ident: &syn::Ident,
 ) -> (TokenStream, TokenStream) {
+    let orm = super::orm_crate_path();
     let ty = match &relation.relation_type {
-        RelationType::HasOne => quote! {corrosion_orm_core::schema::relation::RelationType::HasOne},
+        RelationType::HasOne => quote! {#orm::schema::relation::RelationType::HasOne},
         RelationType::HasMany => {
-            quote! {corrosion_orm_core::schema::relation::RelationType::HasMany}
+            quote! {#orm::schema::relation::RelationType::HasMany}
         }
         RelationType::BelongsTo => {
-            quote! {corrosion_orm_core::schema::relation::RelationType::BelongsTo}
+            quote! {#orm::schema::relation::RelationType::BelongsTo}
         }
         RelationType::BelongsToMany => {
-            quote! {corrosion_orm_core::schema::relation::RelationType::BelongsToMany}
+            quote! {#orm::schema::relation::RelationType::BelongsToMany}
         }
     };
 
@@ -177,7 +189,7 @@ fn generate_relation(
     let table_expr = match &relation.table {
         Some(t) => quote! { String::from(#t) },
         None => {
-            quote! { <#table_expr_type as corrosion_orm_core::schema::table::TableSchema>::get_table_name().to_string() }
+            quote! { <#table_expr_type as #orm::schema::table::TableSchema>::get_table_name().to_string() }
         }
     };
 
@@ -192,8 +204,8 @@ fn generate_relation(
             label = "this type does not derive `Model`",
             note = "add `#[derive(Model)]` to `{Self}`"
         )]
-        trait #trait_name: corrosion_orm_core::schema::table::TableSchema {}
-        impl<T: corrosion_orm_core::schema::table::TableSchema> #trait_name for T {}
+        trait #trait_name: #orm::schema::table::TableSchema {}
+        impl<T: #orm::schema::table::TableSchema> #trait_name for T {}
 
         const _: fn() = || {
             fn check_relation_target<T: #trait_name>() {}
@@ -201,19 +213,20 @@ fn generate_relation(
         };
     };
     let relation = quote! {
-        corrosion_orm_core::schema::relation::RelationModel::builder()
+        #orm::schema::relation::RelationModel::builder()
             .relation_type(#ty)
             .table(#table_expr)
             .foreign_key(String::from(#key))
-            .target_key(<#check_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.name)
+            .target_key(<#check_type as #orm::schema::table::TableSchema>::get_schema().primary_key.name)
             .relation_name(String::from(#relation_name))
             .source_table(String::from(#source_table))
             .is_eager(#is_eager)
-            .field(corrosion_orm_core::schema::table::ColumnSchemaModel {
+            .field(#orm::schema::table::ColumnSchemaModel {
                 name: String::from(#key),
                 is_nullable: false,
                 is_unique: #is_unique,
-                sql_type: <#check_type as corrosion_orm_core::schema::table::TableSchema>::get_schema().primary_key.ty
+                sql_type: <#check_type as #orm::schema::table::TableSchema>::get_schema().primary_key.ty,
+                generation_type: None,
             })
             .build()
     };

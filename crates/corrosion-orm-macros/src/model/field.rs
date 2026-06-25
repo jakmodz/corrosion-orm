@@ -1,3 +1,4 @@
+use corrosion_orm_core::types::generation_strategy::GenerationType;
 use deluxe::ExtractAttributes;
 use syn::{Ident, Type};
 
@@ -16,6 +17,8 @@ pub struct ColumnAttribute {
     pub(crate) column_definition: Option<String>,
     #[deluxe(default = false)]
     pub(crate) index: bool,
+    #[deluxe(default = None)]
+    pub(crate) generation_strategy: Option<GenerationType>,
 }
 
 #[derive(Clone, Debug)]
@@ -29,6 +32,7 @@ pub struct Field {
     pub is_nullable: bool,
     pub column_definition: Option<String>,
     pub has_index: bool,
+    pub generation_strategy: Option<GenerationType>,
 }
 
 impl TryFrom<(ColumnAttribute, &syn::Field)> for Field {
@@ -66,6 +70,7 @@ impl TryFrom<(ColumnAttribute, &syn::Field)> for Field {
             is_nullable,
             column_definition: attr.column_definition,
             has_index: attr.index,
+            generation_strategy: attr.generation_strategy,
         })
     }
 }

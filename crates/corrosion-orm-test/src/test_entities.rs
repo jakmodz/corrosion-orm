@@ -1,4 +1,7 @@
-use corrosion_orm_core::{SqliteConfigBuilder, SqliteDriver, dialect::sql_dialect::SqlDialect};
+use corrosion_orm_core::{
+    Executor, SqliteConfigBuilder, SqliteDriver, dialect::sql_dialect::SqlDialect,
+    query::query_type::QueryContext, schema::table::TableSchema,
+};
 use corrosion_orm_macros::Model;
 #[allow(dead_code)]
 pub(crate) struct MockSqliteDialect;
@@ -22,6 +25,10 @@ impl SqlDialect for MockSqliteDialect {
     /// The string `"?"` representing the SQLite parameter placeholder.
     fn bind_param(&self, _count: &usize) -> String {
         "?".to_string()
+    }
+
+    fn generate_empty_insert(&self, _table_name: &str) -> String {
+        String::new()
     }
 }
 #[derive(Model, Clone, Debug, Default)]
@@ -58,6 +65,24 @@ pub struct Teacher {
     #[HasMany(foreign_key = "teacher_id", table = "Post")]
     pub posts: Vec<Post>,
 }
+
+#[derive(Model, Clone, Debug, Default)]
+#[Table(name = "products")]
+pub struct Product {
+    #[Column(name = "id", generation_strategy = {auto_increment})]
+    #[PrimaryKey]
+    pub id: i32,
+    #[Column(name = "name")]
+    pub name: String,
+}
+#[derive(Debug, Clone, Model)]
+pub(crate) struct AutoIncrementModel {
+    #[Column(name = "id", generation_strategy = {auto_increment})]
+    #[PrimaryKey]
+    pub id: i32,
+    #[Column(name = "name")]
+    pub name: String,
+}
 impl User {
     /// Creates an example `User` populated with sample values.
     ///
@@ -78,6 +103,11 @@ impl User {
             name: String::from("Bob"),
         }
     }
+}
+pub async fn register_model<E: Executor, T: TableSchema>(conn: &mut E) {
+    let mut ctx = QueryContext::from_model(T::get_schema(), conn.get_dialect());
+
+    conn.execute_query(&mut ctx).await.unwrap();
 }
 /// Initializes an in-memory SQLite driver and creates tables for the test models.
 ///
@@ -115,43 +145,10 @@ pub async fn init_sqlite() -> SqliteDriver {
         .url(String::from(":memory:"))
         .build();
     let driver = SqliteDriver::new(config).await.unwrap();
-    let mut ctx = QueryContext::from_model(
-        User::get_schema(),
-        driver.acquire_conn().await.unwrap().get_dialect(),
-    );
-
-    driver
-        .acquire_conn()
-        .await
-        .unwrap()
-        .execute_query(&mut ctx)
-        .await
-        .unwrap();
-
-    let mut ctx = QueryContext::from_model(
-        Post::get_schema(),
-        driver.acquire_conn().await.unwrap().get_dialect(),
-    );
-
-    driver
-        .acquire_conn()
-        .await
-        .unwrap()
-        .execute_query(&mut ctx)
-        .await
-        .unwrap();
-
-    let mut ctx = QueryContext::from_model(
-        Teacher::get_schema(),
-        driver.acquire_conn().await.unwrap().get_dialect(),
-    );
-
-    driver
-        .acquire_conn()
-        .await
-        .unwrap()
-        .execute_query(&mut ctx)
-        .await
-        .unwrap();
+    let mut conn = driver.acquire_conn().await.unwrap();
+    register_model::<_, User>(&mut conn).await;
+    register_model::<_, Post>(&mut conn).await;
+    register_model::<_, Teacher>(&mut conn).await;
+    register_model::<_, AutoIncrementModel>(&mut conn).await;
     driver
 }

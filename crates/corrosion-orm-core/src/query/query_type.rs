@@ -1,17 +1,37 @@
 use crate::dialect::sql_dialect::SqlDialect;
+use crate::query::{create::Create, to_sql::ToSql};
 use crate::schema::table::TableSchemaModel;
 
 /// Enum representing a SQL value of various types.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     String(String),
     Int(i32),
     Int64(i64),
+    Float(f64),
     Bool(bool),
     Date(chrono::NaiveDate),
     DateTime(chrono::NaiveDateTime),
     Null,
 }
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::Int(a), Value::Int(b)) => a == b,
+            (Value::Int64(a), Value::Int64(b)) => a == b,
+            (Value::Float(a), Value::Float(b)) => a == b || (a.is_nan() && b.is_nan()),
+            (Value::Bool(a), Value::Bool(b)) => a == b,
+            (Value::Date(a), Value::Date(b)) => a == b,
+            (Value::DateTime(a), Value::DateTime(b)) => a == b,
+            (Value::Null, Value::Null) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Value {}
 
 macro_rules! impl_from_value {
     ($variant:ident, $ty:ty) => {
@@ -30,6 +50,8 @@ impl_from_value!(Int, u8);
 impl_from_value!(Int, u16);
 impl_from_value!(Int64, i64);
 impl_from_value!(Int64, u32);
+impl_from_value!(Float, f32);
+impl_from_value!(Float, f64);
 impl_from_value!(Bool, bool);
 
 impl From<String> for Value {
@@ -91,6 +113,7 @@ impl QueryContext {
                     Value::String(s) => format!("'{}'", s.replace('\'', "''")),
                     Value::Int(i) => i.to_string(),
                     Value::Int64(i) => i.to_string(),
+                    Value::Float(f) => f.to_string(),
                     Value::Bool(b) => if *b { "1" } else { "0" }.to_string(),
                     Value::Date(d) => format!("'{}'", d),
                     Value::DateTime(naive_date_time) => format!("'{}'", naive_date_time),
@@ -132,7 +155,16 @@ impl QueryContext {
     /// * `dialect` - The SQL dialect to use for generating the DDL.
     pub fn from_model(model: TableSchemaModel, dialect: &dyn SqlDialect) -> Self {
         let mut ctx = Self::new();
-        ctx.sql = dialect.generate_ddl(&model).unwrap();
+        let create = Create::new(model);
+        create.to_sql(&mut ctx, dialect);
+        ctx
+    }
+
+    /// Creates a new `QueryContext` from a `TableSchemaModel` using `CREATE TABLE IF NOT EXISTS`.
+    pub fn from_model_if_not_exists(model: TableSchemaModel, dialect: &dyn SqlDialect) -> Self {
+        let mut ctx = Self::new();
+        let create = Create::new(model).if_not_exists();
+        create.to_sql(&mut ctx, dialect);
         ctx
     }
 }
@@ -176,6 +208,58 @@ impl From<Value> for i64 {
             Value::Int(i) => i as i64,
             Value::Int64(i) => i,
             _ => panic!("Cannot convert Value to i64"),
+        }
+    }
+}
+
+#[cfg(feature = "sqlite")]
+mod sqlx_impls {
+    use super::Value;
+    use sqlx::error::BoxDynError;
+    use sqlx::sqlite::{Sqlite, SqliteTypeInfo, SqliteValueRef};
+    use sqlx::{Decode, Type, TypeInfo, ValueRef};
+
+    impl Type<Sqlite> for Value {
+        fn type_info() -> SqliteTypeInfo {
+            <String as Type<Sqlite>>::type_info()
+        }
+
+        fn compatible(_ty: &SqliteTypeInfo) -> bool {
+            true
+        }
+    }
+
+    impl<'r> Decode<'r, Sqlite> for Value {
+        fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+            if value.is_null() {
+                return Ok(Value::Null);
+            }
+
+            let type_name = value.type_info().name().to_uppercase();
+            match type_name.as_str() {
+                "INTEGER" => {
+                    let v = <i64 as Decode<Sqlite>>::decode(value)?;
+                    if (i32::MIN as i64..=i32::MAX as i64).contains(&v) {
+                        Ok(Value::Int(v as i32))
+                    } else {
+                        Ok(Value::Int64(v))
+                    }
+                }
+                "REAL" => Ok(Value::Float(<f64 as Decode<Sqlite>>::decode(value)?)),
+                "TEXT" => Ok(Value::String(<String as Decode<Sqlite>>::decode(value)?)),
+                "BOOLEAN" | "BOOL" => Ok(Value::Bool(<bool as Decode<Sqlite>>::decode(value)?)),
+                "DATE" => Ok(Value::Date(<chrono::NaiveDate as Decode<Sqlite>>::decode(
+                    value,
+                )?)),
+                "DATETIME" | "TIMESTAMP" => {
+                    Ok(Value::DateTime(<chrono::NaiveDateTime as Decode<
+                        Sqlite,
+                    >>::decode(value)?))
+                }
+                "NULL" => Ok(Value::Null),
+                "BLOB" => Err("SQLite BLOB values are not supported by Value".into()),
+                _ => Err(format!("Unsupported SQLite type for Value: {type_name}").into()),
+            }
         }
     }
 }

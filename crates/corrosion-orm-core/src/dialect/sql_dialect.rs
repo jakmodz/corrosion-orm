@@ -5,7 +5,7 @@ use crate::{
             ColumnSchemaModel, IndexModel, PrimaryKeyModel, SchemaValidationError, TableSchemaModel,
         },
     },
-    types::column_type::SqlType,
+    types::{column_type::SqlType, generation_strategy::GenerationType},
 };
 
 static PRIMARY_KEY_TYPE: &str = "PRIMARY KEY";
@@ -18,15 +18,25 @@ pub trait SqlDialect: Send + Sync {
     /// Maps an [`SqlType`] to its database-specific type name.
     fn cast_type(&self, sql_type: &SqlType) -> String;
 
+    fn cast_generation_type(&self, generation_type: &GenerationType) -> String {
+        match generation_type {
+            GenerationType::AutoIncrement => " AUTO_INCREMENT".to_string(),
+        }
+    }
+
     /// Formats the PRIMARY KEY column definition (no trailing newline or comma).
     fn cast_primary_key(&self, primary_key: &PrimaryKeyModel) -> String {
-        format!(
+        let mut s = format!(
             "{}{} {} {}",
             TAB,
             &primary_key.name,
             self.cast_type(&primary_key.ty),
             PRIMARY_KEY_TYPE
-        )
+        );
+        if let Some(generation_type) = &primary_key.generation_type {
+            s.push_str(self.cast_generation_type(generation_type).as_str());
+        }
+        s
     }
     /// Builds a FOREIGN KEY clause for a relation without a trailing comma or newline.
     ///
@@ -89,6 +99,7 @@ pub trait SqlDialect: Send + Sync {
     ///     sql_type: SqlType::Varchar(255),
     ///     is_nullable: false,
     ///     is_unique: true,
+    ///     generation_type: None,
     /// };
     ///
     /// # #[cfg(feature = "sqlite")]
@@ -112,6 +123,9 @@ pub trait SqlDialect: Send + Sync {
         }
         if column.is_unique {
             s.push_str(" UNIQUE");
+        }
+        if let Some(generation_type) = &column.generation_type {
+            s.push_str(self.cast_generation_type(generation_type).as_str());
         }
         s
     }
@@ -244,4 +258,5 @@ pub trait SqlDialect: Send + Sync {
     }
 
     fn bind_param(&self, count: &usize) -> String;
+    fn generate_empty_insert(&self, table_name: &str) -> String;
 }

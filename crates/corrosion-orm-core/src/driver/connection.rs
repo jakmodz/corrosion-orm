@@ -1,5 +1,7 @@
 use crate::{
-    dialect::sql_dialect::SqlDialect, error::CorrosionOrmError, query::query_type::QueryContext,
+    dialect::sql_dialect::SqlDialect,
+    error::CorrosionOrmError,
+    query::query_type::{QueryContext, Value},
 };
 use sqlx::FromRow;
 
@@ -39,6 +41,8 @@ pub trait Connection: Sized + Sync + Send {
     async fn commit_transaction(&mut self) -> Result<(), CorrosionOrmError>;
     /// Rolls back the current transaction.
     async fn rollback_transaction(&mut self) -> Result<(), CorrosionOrmError>;
+    /// Returns the last inserted ID.
+    async fn get_last_id(&mut self) -> Result<Value, CorrosionOrmError>;
     /// Checks if the connection is still valid.
     async fn is_valid(&mut self) -> bool;
     /// Returns the SQL dialect for this connection.
