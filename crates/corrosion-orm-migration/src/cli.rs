@@ -1,16 +1,12 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use corrosion_orm::{
-    SqlDriver, SqliteConfigBuilder, SqliteDriver,
-    model::snapshot::{ModelRegistry, ModelsSnapshot},
-};
+use corrosion_orm::model::snapshot::{ModelRegistry, ModelsSnapshot};
 
 use crate::{
     MigratorTrait,
     driver_util::{connect, make_executor_from},
     migration_generator::create_migration,
     runner,
-    sqlite_executor::SqliteMigrationExecutor,
 };
 
 #[derive(Parser)]
