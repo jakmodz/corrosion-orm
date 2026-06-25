@@ -1,5 +1,6 @@
 use crate::migration_registry::{MigrationRegistry, migrationregistry};
 use anyhow::Result;
+use corrosion_orm::driver::connection::Conn;
 use corrosion_orm::{
     CorrosionSqlitePool, Repository, driver::connection_pool::ConnectionGuard, prelude::Executor,
     query::query_type::QueryContext,
@@ -52,9 +53,11 @@ impl MigrationExecutor for SqliteMigrationExecutor<'_> {
     }
 
     async fn execute_create_query(&mut self, create: &Create) -> Result<()> {
+        self.conn.begin_transaction().await?;
         let mut ctx = QueryContext::new();
         create.to_sql(&mut ctx, self.conn.get_dialect());
         self.execute_query(&mut ctx).await?;
+        self.conn.commit_transaction().await?;
         Ok(())
     }
 }

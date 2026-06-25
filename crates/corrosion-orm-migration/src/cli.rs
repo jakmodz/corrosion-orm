@@ -95,12 +95,9 @@ pub async fn run_cli<M: MigratorTrait>(registry: &ModelRegistry) -> Result<()> {
                 .database_url
                 .as_deref()
                 .context("--database-url is required for migration status")?;
-            let config = SqliteConfigBuilder::new().url(db_url.to_string()).build();
-            let driver = SqliteDriver::new(config).await?;
-            let mut conn = driver.acquire_conn().await?;
-            let mut executor = SqliteMigrationExecutor::new(&mut conn);
-
-            let statuses = runner::status::<M>(&mut executor).await?;
+            let mut conn = connect(db_url).await?;
+            let mut executor = make_executor_from(&mut conn);
+            let statuses = runner::status::<M>(&mut *executor).await?;
             for status in statuses {
                 let marker = if status.applied { "[x]" } else { "[ ]" };
                 println!("{marker} {}", status.name);
