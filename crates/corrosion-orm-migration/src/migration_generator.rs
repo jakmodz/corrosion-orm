@@ -44,7 +44,10 @@ pub async fn create_migration(
             .iter()
             .map(|m| diff_engine::MigrationOp::CreateTable(m.clone()))
             .collect();
-        (render_up_code(&ops, dialect), String::new())
+        (
+            render_up_code(&ops, dialect),
+            render_down_code(&ops, dialect),
+        )
     };
 
     let raw_template = include_str!(concat!(
