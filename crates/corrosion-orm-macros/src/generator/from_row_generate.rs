@@ -134,17 +134,10 @@ fn generate_pk_field_assign(_orm: &TokenStream, pk: &PrimaryKeyField) -> TokenSt
 fn generate_field_assign(_orm: &TokenStream, field: &Field) -> TokenStream {
     let field_ident = &field.iden;
     let col_name = &field.name;
-    if field.is_nullable {
-        if is_option_type(&field.ty) {
-            let inner_ty = extract_inner_type(&field.ty);
-            quote! {
-                #field_ident: row.try_get_optional::<#inner_ty>(#col_name)?,
-            }
-        } else {
-            let ty = &field.ty;
-            quote! {
-                #field_ident: row.try_get_optional::<#ty>(#col_name)?.unwrap_or_default(),
-            }
+    if field.is_nullable && is_option_type(&field.ty) {
+        let inner_ty = extract_inner_type(&field.ty);
+        quote! {
+            #field_ident: row.try_get_optional::<#inner_ty>(#col_name)?,
         }
     } else {
         let ty = &field.ty;
