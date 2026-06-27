@@ -85,6 +85,54 @@ where
         }
     }
 }
+/// Generates `TryFrom<Value, Error = String>` implementations.
+///
+/// # Single variant form
+/// `generate_try_from!(T, Variant)` — extracts inner value directly.
+///
+/// # Multi-variant form
+/// `generate_try_from!(T, Variant1(pat) => expr, Variant2(pat) => expr)` —
+/// maps multiple Value variants with conversion expressions.
+macro_rules! generate_try_from {
+    ($ty:ty, $variant:ident) => {
+        impl TryFrom<Value> for $ty {
+            type Error = String;
+            fn try_from(v: Value) -> Result<Self, Self::Error> {
+                match v {
+                    Value::$variant(val) => Ok(val),
+                    _ => Err(format!(
+                        "Cannot convert Value to {}, got {:?}",
+                        stringify!($ty),
+                        v
+                    )),
+                }
+            }
+        }
+    };
+    ($ty:ty, $($variant:ident($pat:ident) => $convert:expr),+ $(,)?) => {
+        impl TryFrom<Value> for $ty {
+            type Error = String;
+            fn try_from(v: Value) -> Result<Self, Self::Error> {
+                match v {
+                    $(Value::$variant($pat) => Ok($convert),)+
+                    _ => Err(format!(
+                        "Cannot convert Value to {}, got {:?}",
+                        stringify!($ty),
+                        v
+                    )),
+                }
+            }
+        }
+    };
+}
+
+generate_try_from!(String, String);
+generate_try_from!(chrono::NaiveDate, Date);
+generate_try_from!(chrono::NaiveDateTime, DateTime);
+generate_try_from!(bool, Bool);
+generate_try_from!(f64, Float);
+generate_try_from!(i32, Int(i) => i, Int64(i) => i as i32);
+generate_try_from!(i64, Int(i) => i as i64, Int64(i) => i);
 
 /// Struct representing a query context, holding the SQL string and bind parameters.
 pub struct QueryContext {
@@ -192,70 +240,6 @@ impl From<&str> for QueryContext {
         }
     }
 }
-impl From<Value> for i32 {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Int(i) => i,
-            Value::Int64(i) => i as i32,
-            _ => panic!("Cannot convert Value to i32"),
-        }
-    }
-}
-
-impl From<Value> for i64 {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Int(i) => i as i64,
-            Value::Int64(i) => i,
-            _ => panic!("Cannot convert Value to i64"),
-        }
-    }
-}
-impl From<Value> for String {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::String(s) => s,
-            _ => panic!("Cannot convert Value to String, got {v:?}"),
-        }
-    }
-}
-
-impl From<Value> for chrono::NaiveDateTime {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::DateTime(dt) => dt,
-            _ => panic!("Cannot convert Value to NaiveDateTime, got {v:?}"),
-        }
-    }
-}
-
-impl From<Value> for chrono::NaiveDate {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Date(d) => d,
-            _ => panic!("Cannot convert Value to NaiveDate, got {v:?}"),
-        }
-    }
-}
-
-impl From<Value> for bool {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Bool(b) => b,
-            _ => panic!("Cannot convert Value to bool, got {v:?}"),
-        }
-    }
-}
-
-impl From<Value> for f64 {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Float(f) => f,
-            _ => panic!("Cannot convert Value to f64, got {v:?}"),
-        }
-    }
-}
-
 #[cfg(feature = "sqlite")]
 mod sqlx_impls {
     use super::Value;

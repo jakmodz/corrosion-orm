@@ -17,4 +17,6 @@ pub enum DriverError {
     NotFound,
     #[error("column not found name: {0}")]
     ColumnNotFound(String),
+    #[error("value conversion error: {0}")]
+    ValueConversion(String),
 }
