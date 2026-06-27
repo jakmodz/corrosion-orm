@@ -16,14 +16,14 @@ pub trait Connection: Sized + Sync + Send {
     async fn execute_query(&mut self, ctx: &mut QueryContext) -> Result<u64, CorrosionOrmError>;
     /// Fetches a single row from the result set.
     ///
-    /// Returns a single row that implements the `FromRow` trait for the given row type.
+    /// Returns a single row that implements the `FromRowDb` trait for the given row type.
     async fn fetch_one<T: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<T, CorrosionOrmError>;
     /// Fetches all rows from the result set.
     ///
-    /// Returns a `Vec` of rows that implement the `FromRow` trait for the given row type.
+    /// Returns a `Vec` of rows that implements the `FromRowDb` trait for the given row type.
     async fn fetch_all<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
