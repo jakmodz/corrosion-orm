@@ -1,9 +1,9 @@
 use crate::{
     dialect::sql_dialect::SqlDialect,
+    driver::from_row_db::FromRowDb,
     error::CorrosionOrmError,
     query::query_type::{QueryContext, Value},
 };
-use sqlx::FromRow;
 
 /// Trait for single database connection.
 #[trait_variant::make(Conn: Send)]
@@ -17,21 +17,21 @@ pub trait Connection: Sized + Sync + Send {
     /// Fetches a single row from the result set.
     ///
     /// Returns a single row that implements the `FromRow` trait for the given row type.
-    async fn fetch_one<T: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_one<T: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<T, CorrosionOrmError>;
     /// Fetches all rows from the result set.
     ///
     /// Returns a `Vec` of rows that implement the `FromRow` trait for the given row type.
-    async fn fetch_all<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_all<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Vec<E>, CorrosionOrmError>;
     /// Fetches a single row from the result set, if one exists.
     ///
     /// Returns `Ok(Some(row))` if a row is found, `Ok(None)` if no rows are found, or an error if one occurs.
-    async fn fetch_optional<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_optional<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Option<E>, CorrosionOrmError>;

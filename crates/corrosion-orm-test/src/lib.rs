@@ -1,7 +1,6 @@
 pub mod dialect;
 #[cfg(test)]
 pub mod diff_engine_tests;
-pub mod from_row_impl;
 mod query;
 mod repository_test;
 mod sqlite_tests;

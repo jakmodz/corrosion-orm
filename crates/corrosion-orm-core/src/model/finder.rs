@@ -1,8 +1,8 @@
-use sqlx::FromRow;
 use std::marker::PhantomData;
 
 use crate::{
     CorrosionOrmError, Executor,
+    driver::from_row_db::FromRowDb,
     model::{cursor_paginator::CursorPaginator, paginator::Paginator},
     prelude::QueryContext,
     query::{Select, ToSql, WhereClause, order_by::OrderBy},
@@ -31,7 +31,7 @@ where
 }
 impl<'query, T, E: Executor, C: ColumnTrait> Finder<'query, T, E, C>
 where
-    T: Send + Unpin + for<'r> FromRow<'r, sqlx::sqlite::SqliteRow>,
+    T: Send + Unpin + FromRowDb,
 {
     pub fn new(query: Select<'query, C>) -> Self {
         Self {

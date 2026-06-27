@@ -1,7 +1,6 @@
 use crate::dialect::sql_dialect::SqlDialect;
 use crate::query::{create::Create, to_sql::ToSql};
 use crate::schema::table::TableSchemaModel;
-
 /// Enum representing a SQL value of various types.
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -86,6 +85,7 @@ where
         }
     }
 }
+
 /// Struct representing a query context, holding the SQL string and bind parameters.
 pub struct QueryContext {
     pub sql: String,
@@ -211,6 +211,50 @@ impl From<Value> for i64 {
         }
     }
 }
+impl From<Value> for String {
+    fn from(v: Value) -> Self {
+        match v {
+            Value::String(s) => s,
+            _ => panic!("Cannot convert Value to String, got {v:?}"),
+        }
+    }
+}
+
+impl From<Value> for chrono::NaiveDateTime {
+    fn from(v: Value) -> Self {
+        match v {
+            Value::DateTime(dt) => dt,
+            _ => panic!("Cannot convert Value to NaiveDateTime, got {v:?}"),
+        }
+    }
+}
+
+impl From<Value> for chrono::NaiveDate {
+    fn from(v: Value) -> Self {
+        match v {
+            Value::Date(d) => d,
+            _ => panic!("Cannot convert Value to NaiveDate, got {v:?}"),
+        }
+    }
+}
+
+impl From<Value> for bool {
+    fn from(v: Value) -> Self {
+        match v {
+            Value::Bool(b) => b,
+            _ => panic!("Cannot convert Value to bool, got {v:?}"),
+        }
+    }
+}
+
+impl From<Value> for f64 {
+    fn from(v: Value) -> Self {
+        match v {
+            Value::Float(f) => f,
+            _ => panic!("Cannot convert Value to f64, got {v:?}"),
+        }
+    }
+}
 
 #[cfg(feature = "sqlite")]
 mod sqlx_impls {
@@ -246,7 +290,18 @@ mod sqlx_impls {
                     }
                 }
                 "REAL" => Ok(Value::Float(<f64 as Decode<Sqlite>>::decode(value)?)),
-                "TEXT" => Ok(Value::String(<String as Decode<Sqlite>>::decode(value)?)),
+                "TEXT" => {
+                    let s = <String as Decode<Sqlite>>::decode(value)?;
+                    if let Ok(dt) =
+                        chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S%.f")
+                    {
+                        Ok(Value::DateTime(dt))
+                    } else if let Ok(d) = chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
+                        Ok(Value::Date(d))
+                    } else {
+                        Ok(Value::String(s))
+                    }
+                }
                 "BOOLEAN" | "BOOL" => Ok(Value::Bool(<bool as Decode<Sqlite>>::decode(value)?)),
                 "DATE" => Ok(Value::Date(<chrono::NaiveDate as Decode<Sqlite>>::decode(
                     value,

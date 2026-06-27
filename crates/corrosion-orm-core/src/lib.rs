@@ -33,6 +33,7 @@ pub mod prelude {
     pub use crate::driver::connection_config::ConnectionConfig;
     pub use crate::driver::connection_pool::ConnectionPool;
     pub use crate::driver::executor::Executor;
+    pub use crate::driver::from_row_db::FromRowDb;
     pub use crate::driver::sql_driver::{SqlDriv, SqlDriver};
     pub use crate::driver::transaction::Transaction;
     pub use crate::error::CorrosionOrmError;

@@ -1,4 +1,5 @@
 use crate::driver::error::DriverError;
+use crate::driver::from_row_db::FromRowDb;
 use crate::model::repository::Repo;
 
 use crate::{CorrosionOrmError, Executor, query::query_type::Value};
@@ -170,12 +171,7 @@ impl<F> Lazy<F> {
 
     pub async fn load<E: Executor>(&mut self, db: &mut E) -> Result<&mut F, CorrosionOrmError>
     where
-        F: Repo<E>
-            + Send
-            + Unpin
-            + Clone
-            + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
-            + crate::schema::table::TableSchema,
+        F: Repo<E> + Send + Unpin + Clone + FromRowDb + crate::schema::table::TableSchema,
         F::PrimaryKey: From<Value>,
     {
         if let LazyStep::Loaded(ref mut f) = self.step {

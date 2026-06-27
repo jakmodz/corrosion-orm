@@ -15,8 +15,8 @@ impl SqlDialect for SqliteDialect {
             SqlType::Varchar(_) => "TEXT",
             SqlType::Text => "TEXT",
             SqlType::Boolean => "INTEGER",
-            SqlType::Date => "TEXT",
-            SqlType::Timestamp => "TEXT",
+            SqlType::Date => "DATE",
+            SqlType::Timestamp => "TIMESTAMP",
             SqlType::Custom(_) => unreachable!(),
         }
         .to_string()

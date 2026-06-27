@@ -1,8 +1,8 @@
-use sqlx::FromRow;
-
 use crate::{
     dialect::sql_dialect::SqlDialect,
-    driver::{connection::Conn, executor::Executor, transaction::Transaction},
+    driver::{
+        connection::Conn, executor::Executor, from_row_db::FromRowDb, transaction::Transaction,
+    },
     error::CorrosionOrmError,
     query::query_type::{QueryContext, Value},
 };
@@ -56,7 +56,7 @@ impl<P: ConnectionPool> Executor for ConnectionGuard<P> {
         self.conn.get_dialect()
     }
 
-    async fn fetch_one<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_one<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<E, CorrosionOrmError> {
@@ -81,7 +81,7 @@ impl<P: ConnectionPool> Executor for ConnectionGuard<P> {
         result
     }
 
-    async fn fetch_all<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_all<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Vec<E>, CorrosionOrmError> {
@@ -105,7 +105,7 @@ impl<P: ConnectionPool> Executor for ConnectionGuard<P> {
         }
         result
     }
-    async fn fetch_optional<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_optional<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Option<E>, CorrosionOrmError> {

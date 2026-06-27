@@ -1,7 +1,6 @@
-use sqlx::FromRow;
-
 use crate::{
     dialect::sql_dialect::SqlDialect,
+    driver::from_row_db::FromRowDb,
     error::CorrosionOrmError,
     query::query_type::{QueryContext, Value},
 };
@@ -10,15 +9,15 @@ use crate::{
 #[trait_variant::make(Executor: Send)]
 pub trait LocalExecutor: Sized + Send + Sync {
     async fn execute_query(&mut self, ctx: &mut QueryContext) -> Result<u64, CorrosionOrmError>;
-    async fn fetch_one<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_one<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<E, CorrosionOrmError>;
-    async fn fetch_all<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_all<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Vec<E>, CorrosionOrmError>;
-    async fn fetch_optional<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_optional<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Option<E>, CorrosionOrmError>;
