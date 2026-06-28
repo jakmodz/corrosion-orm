@@ -158,7 +158,7 @@ fn row_to_db_row(row: &sqlx::sqlite::SqliteRow) -> Result<DbRow, CorrosionOrmErr
     for col in row.columns().iter() {
         let v: Value = row
             .try_get::<Value, &str>(col.name())
-            .map_err(|e| CorrosionOrmError::DriverError(DriverError::Sqlx(e)))?;
+            .unwrap_or(Value::Null);
         columns.push((col.name().to_string(), v));
     }
     Ok(DbRow::new(columns))
