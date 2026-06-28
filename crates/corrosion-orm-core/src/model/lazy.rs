@@ -1,4 +1,5 @@
 use crate::driver::error::DriverError;
+use crate::driver::from_row_db::FromRowDb;
 use crate::model::repository::Repo;
 
 use crate::{CorrosionOrmError, Executor, query::query_type::Value};
@@ -138,7 +139,7 @@ impl<F> Lazy<F> {
     where
         E: Executor,
         F: Repo<E> + Send + Unpin + Clone,
-        F::PrimaryKey: From<Value>,
+        F::PrimaryKey: TryFrom<Value, Error = String>,
         FMap: Fn(&F) -> Value,
     {
         match &self.step {
@@ -170,13 +171,8 @@ impl<F> Lazy<F> {
 
     pub async fn load<E: Executor>(&mut self, db: &mut E) -> Result<&mut F, CorrosionOrmError>
     where
-        F: Repo<E>
-            + Send
-            + Unpin
-            + Clone
-            + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
-            + crate::schema::table::TableSchema,
-        F::PrimaryKey: From<Value>,
+        F: Repo<E> + Send + Unpin + Clone + FromRowDb + crate::schema::table::TableSchema,
+        F::PrimaryKey: TryFrom<Value, Error = String>,
     {
         if let LazyStep::Loaded(ref mut f) = self.step {
             return Ok(f);
@@ -195,7 +191,9 @@ impl<F> Lazy<F> {
         let loaded_entity = match &self.step {
             LazyStep::NotLoaded(Some(condition)) => match condition {
                 LazyCondition::ById(id_val) => {
-                    let id = F::PrimaryKey::from(id_val.clone());
+                    let id = F::PrimaryKey::try_from(id_val.clone()).map_err(|e| {
+                        CorrosionOrmError::DriverError(DriverError::ValueConversion(e))
+                    })?;
                     F::get_by_id(id, db)
                         .await?
                         .ok_or(CorrosionOrmError::DriverError(DriverError::NotFound))?

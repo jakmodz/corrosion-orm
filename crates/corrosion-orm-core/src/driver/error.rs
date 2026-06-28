@@ -15,4 +15,8 @@ pub enum DriverError {
     ConnectionClosed,
     #[error("resource not found")]
     NotFound,
+    #[error("column not found name: {0}")]
+    ColumnNotFound(String),
+    #[error("value conversion error: {0}")]
+    ValueConversion(String),
 }

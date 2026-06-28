@@ -1,13 +1,11 @@
-use crate::utils::extract_type_ident;
+use crate::utils::{extract_inner_type, extract_type_ident, is_option_type};
 use crate::{
     TableData,
     model::{Field, primary_key::PrimaryKeyField},
-    utils::extract_inner_type,
 };
 use corrosion_orm_core::schema::relation::RelationType;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::Type;
 /// Generate a Rust `TokenStream` that implements `sqlx::FromRow` for the provided table struct.
 ///
 /// The generated implementation constructs the struct by reading the primary key and each
@@ -111,21 +109,9 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
         })
         .collect();
 
-    let pk_bound = type_bounds(&orm, &table.primary_key.ty);
-    let field_bounds: Vec<TokenStream> = table
-        .fields
-        .iter()
-        .map(|f| type_bounds(&orm, &f.ty))
-        .collect();
-
     quote! {
-        impl<'r, R: #orm::sqlx::Row> #orm::sqlx::FromRow<'r, R> for #struct_ident
-        where
-            for<'c> &'c str: #orm::sqlx::ColumnIndex<R>,
-            #pk_bound
-            #(#field_bounds)*
-        {
-            fn from_row(row: &'r R) -> #orm::sqlx::Result<Self> {
+        impl #orm::driver::from_row_db::FromRowDb for #struct_ident {
+            fn from_row(row: &#orm::driver::db_row::DbRow) -> Result<Self, #orm::error::CorrosionOrmError> {
                 Ok(Self {
                     #pk_field_assign
                     #(#field_assigns)*
@@ -136,25 +122,27 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
     }
 }
 
-fn type_bounds(orm: &TokenStream, ty: &Type) -> TokenStream {
-    quote! {
-        #ty: #orm::sqlx::decode::Decode<'r, R::Database>,
-        #ty: #orm::sqlx::types::Type<R::Database>,
-    }
-}
-
 fn generate_pk_field_assign(_orm: &TokenStream, pk: &PrimaryKeyField) -> TokenStream {
     let field_ident = &pk.iden;
     let col_name = &pk.name;
+    let ty = &pk.ty;
     quote! {
-        #field_ident: row.try_get(#col_name)?,
+        #field_ident: row.try_get::<#ty>(#col_name)?,
     }
 }
 
 fn generate_field_assign(_orm: &TokenStream, field: &Field) -> TokenStream {
     let field_ident = &field.iden;
     let col_name = &field.name;
-    quote! {
-        #field_ident: row.try_get(#col_name)?,
+    if field.is_nullable && is_option_type(&field.ty) {
+        let inner_ty = extract_inner_type(&field.ty);
+        quote! {
+            #field_ident: row.try_get_optional::<#inner_ty>(#col_name)?,
+        }
+    } else {
+        let ty = &field.ty;
+        quote! {
+            #field_ident: row.try_get::<#ty>(#col_name)?,
+        }
     }
 }

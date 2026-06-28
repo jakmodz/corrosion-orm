@@ -1,10 +1,10 @@
 #[allow(clippy::disallowed_types)]
 use sqlx::Connection;
-use sqlx::{FromRow, Row};
+use sqlx::{Column, Row, sqlite::SqliteRow};
 
 use crate::{
     dialect::{sql_dialect::SqlDialect, sqlite_dialect::sqlite::SqliteDialect},
-    driver::error::DriverError,
+    driver::{db_row::DbRow, error::DriverError, from_row_db::FromRowDb},
     error::CorrosionOrmError,
     query::query_type::{QueryContext, Value},
 };
@@ -79,55 +79,68 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
         &SqliteDialect
     }
 
-    async fn fetch_one<T: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_one<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
-    ) -> Result<T, CorrosionOrmError> {
-        let mut query = sqlx::query_as::<_, T>(&ctx.sql);
+    ) -> Result<E, CorrosionOrmError> {
+        let mut query = sqlx::query(&ctx.sql);
 
         for value in ctx.values.iter() {
             query = bind_to_query!(query, value)
         }
 
-        let result = query
+        let row: SqliteRow = query
             .fetch_one(self.inner.as_mut())
             .await
             .map_err(DriverError::Sqlx)?;
+        let db_row = row_to_db_row(&row)?;
+        let result = E::from_row(&db_row)?;
         Ok(result)
     }
 
-    async fn fetch_all<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_all<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Vec<E>, CorrosionOrmError> {
-        let mut query = sqlx::query_as::<_, E>(&ctx.sql);
+        let mut query = sqlx::query(&ctx.sql);
 
         for value in ctx.values.iter() {
             query = bind_to_query!(query, value)
         }
-
-        let result = query
+        let rows: Vec<SqliteRow> = query
             .fetch_all(self.inner.as_mut())
             .await
             .map_err(DriverError::Sqlx)?;
-        Ok(result)
+        let mut results: Vec<E> = Vec::new();
+        for row in rows.iter() {
+            let row_db = row_to_db_row(row)?;
+            let result = E::from_row(&row_db)?;
+            results.push(result);
+        }
+        Ok(results)
     }
 
-    async fn fetch_optional<E: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin>(
+    async fn fetch_optional<E: FromRowDb + Send + Unpin>(
         &mut self,
         ctx: &mut QueryContext,
     ) -> Result<Option<E>, CorrosionOrmError> {
-        let mut query = sqlx::query_as::<_, E>(&ctx.sql);
+        let mut query = sqlx::query(&ctx.sql);
 
         for value in ctx.values.iter() {
             query = bind_to_query!(query, value)
         }
 
-        let result = query
+        let row: Option<SqliteRow> = query
             .fetch_optional(self.inner.as_mut())
             .await
             .map_err(DriverError::Sqlx)?;
-        Ok(result)
+        if let Some(row) = row {
+            let db_row = row_to_db_row(&row)?;
+            let result = E::from_row(&db_row)?;
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn get_last_id(&mut self) -> Result<Value, CorrosionOrmError> {
@@ -139,4 +152,14 @@ impl crate::driver::connection::Conn for CorrosionSqliteConnection {
         let last_id = result.try_get(0).map_err(DriverError::Sqlx)?;
         Ok(last_id)
     }
+}
+fn row_to_db_row(row: &sqlx::sqlite::SqliteRow) -> Result<DbRow, CorrosionOrmError> {
+    let mut columns = Vec::new();
+    for col in row.columns().iter() {
+        let v: Value = row
+            .try_get::<Value, &str>(col.name())
+            .unwrap_or(Value::Null);
+        columns.push((col.name().to_string(), v));
+    }
+    Ok(DbRow::new(columns))
 }

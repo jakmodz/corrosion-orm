@@ -1,8 +1,6 @@
-use sqlx::FromRow;
-
 use crate::{
     CorrosionOrmError, Executor,
-    driver::error::DriverError,
+    driver::{error::DriverError, from_row_db::FromRowDb},
     model::repository::Repo,
     query::{WhereClause, query_type::Value},
     schema::table::TableSchema,
@@ -106,11 +104,7 @@ impl<F, C: ColumnTrait> LazyCollection<F, C> {
 
     pub async fn load<E: Executor>(&mut self, db: &mut E) -> Result<&mut Vec<F>, CorrosionOrmError>
     where
-        F: Repo<E, Column = C>
-            + Send
-            + Unpin
-            + TableSchema
-            + for<'r> FromRow<'r, sqlx::sqlite::SqliteRow>,
+        F: Repo<E, Column = C> + Send + Unpin + TableSchema + FromRowDb,
     {
         if let LazyCollectionStep::Loaded(ref mut items) = self.step {
             return Ok(items);

@@ -65,8 +65,8 @@
 //! - Use immutable unique columns (typically auto-increment IDs)
 
 use crate::{
-    CorrosionOrmError, Executor, model::Finder, prelude::Value, query::WhereClause,
-    types::ColumnTrait,
+    CorrosionOrmError, Executor, driver::from_row_db::FromRowDb, model::Finder, prelude::Value,
+    query::WhereClause, types::ColumnTrait,
 };
 
 pub struct CursorPaginator<'query, T, E: Executor, C: ColumnTrait> {
@@ -77,7 +77,7 @@ pub struct CursorPaginator<'query, T, E: Executor, C: ColumnTrait> {
 
 impl<'query, T, E: Executor, C: ColumnTrait> CursorPaginator<'query, T, E, C>
 where
-    T: Send + Unpin + Clone + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
+    T: Send + Unpin + Clone + FromRowDb,
 {
     pub fn new(finder: Finder<'query, T, E, C>, page_size: usize) -> Self {
         Self {

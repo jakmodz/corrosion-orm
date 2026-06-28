@@ -1,7 +1,6 @@
 use crate::dialect::sql_dialect::SqlDialect;
 use crate::query::{create::Create, to_sql::ToSql};
 use crate::schema::table::TableSchemaModel;
-
 /// Enum representing a SQL value of various types.
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -86,6 +85,55 @@ where
         }
     }
 }
+/// Generates `TryFrom<Value, Error = String>` implementations.
+///
+/// # Single variant form
+/// `generate_try_from!(T, Variant)` — extracts inner value directly.
+///
+/// # Multi-variant form
+/// `generate_try_from!(T, Variant1(pat) => expr, Variant2(pat) => expr)` —
+/// maps multiple Value variants with conversion expressions.
+macro_rules! generate_try_from {
+    ($ty:ty, $variant:ident) => {
+        impl TryFrom<Value> for $ty {
+            type Error = String;
+            fn try_from(v: Value) -> Result<Self, Self::Error> {
+                match v {
+                    Value::$variant(val) => Ok(val),
+                    _ => Err(format!(
+                        "Cannot convert Value to {}, got {:?}",
+                        stringify!($ty),
+                        v
+                    )),
+                }
+            }
+        }
+    };
+    ($ty:ty, $($variant:ident($pat:ident) => $convert:expr),+ $(,)?) => {
+        impl TryFrom<Value> for $ty {
+            type Error = String;
+            fn try_from(v: Value) -> Result<Self, Self::Error> {
+                match v {
+                    $(Value::$variant($pat) => Ok($convert),)+
+                    _ => Err(format!(
+                        "Cannot convert Value to {}, got {:?}",
+                        stringify!($ty),
+                        v
+                    )),
+                }
+            }
+        }
+    };
+}
+
+generate_try_from!(String, String);
+generate_try_from!(chrono::NaiveDate, Date);
+generate_try_from!(chrono::NaiveDateTime, DateTime);
+generate_try_from!(bool, Bool);
+generate_try_from!(f64, Float);
+generate_try_from!(i32, Int(i) => i, Int64(i) => i as i32);
+generate_try_from!(i64, Int(i) => i as i64, Int64(i) => i);
+
 /// Struct representing a query context, holding the SQL string and bind parameters.
 pub struct QueryContext {
     pub sql: String,
@@ -192,26 +240,6 @@ impl From<&str> for QueryContext {
         }
     }
 }
-impl From<Value> for i32 {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Int(i) => i,
-            Value::Int64(i) => i as i32,
-            _ => panic!("Cannot convert Value to i32"),
-        }
-    }
-}
-
-impl From<Value> for i64 {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Int(i) => i as i64,
-            Value::Int64(i) => i,
-            _ => panic!("Cannot convert Value to i64"),
-        }
-    }
-}
-
 #[cfg(feature = "sqlite")]
 mod sqlx_impls {
     use super::Value;
@@ -246,7 +274,18 @@ mod sqlx_impls {
                     }
                 }
                 "REAL" => Ok(Value::Float(<f64 as Decode<Sqlite>>::decode(value)?)),
-                "TEXT" => Ok(Value::String(<String as Decode<Sqlite>>::decode(value)?)),
+                "TEXT" => {
+                    let s = <String as Decode<Sqlite>>::decode(value)?;
+                    if let Ok(dt) =
+                        chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S%.f")
+                    {
+                        Ok(Value::DateTime(dt))
+                    } else if let Ok(d) = chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
+                        Ok(Value::Date(d))
+                    } else {
+                        Ok(Value::String(s))
+                    }
+                }
                 "BOOLEAN" | "BOOL" => Ok(Value::Bool(<bool as Decode<Sqlite>>::decode(value)?)),
                 "DATE" => Ok(Value::Date(<chrono::NaiveDate as Decode<Sqlite>>::decode(
                     value,
