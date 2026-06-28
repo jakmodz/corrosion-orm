@@ -1,25 +1,10 @@
 use crate::TableData;
+use crate::utils::extract_inner_type;
 use corrosion_orm_core::schema::relation::RelationType;
 use quote::quote;
 use syn::Type;
 
 /// Extracts the element type `T` when given a `Vec<T>` type path.
-///
-/// Returns `None` if the provided type is not a `Vec` path or the `Vec` has no first generic type argument.
-///
-/// # Examples
-///
-/// ```ignore
-/// use syn::Type;
-///
-/// let ty: Type = syn::parse_str("Vec<i32>").unwrap();
-/// let inner = extract_vec_inner_type(&ty).expect("should extract inner type");
-/// if let Type::Path(tp) = inner {
-///     assert_eq!(tp.path.segments.last().unwrap().ident, "i32");
-/// } else {
-///     panic!("expected a Type::Path for the inner type");
-/// }
-/// ```
 fn extract_vec_inner_type(ty: &Type) -> Option<&Type> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -33,18 +18,6 @@ fn extract_vec_inner_type(ty: &Type) -> Option<&Type> {
 }
 
 /// Extracts the identifier of the last path segment when `ty` is a path type.
-///
-/// # Returns
-/// `Some(Ident)` if `ty` is a `Type::Path` and the last path segment has an identifier, `None` otherwise.
-///
-/// # Examples
-///
-/// ```ignore
-/// use syn::{Type, parse_quote};
-/// let ty: Type = parse_quote!(std::collections::HashMap<String, i32>);
-/// let ident = extract_type_ident(&ty).unwrap();
-/// assert_eq!(ident.to_string(), "HashMap");
-/// ```
 fn extract_type_ident(ty: &Type) -> Option<syn::Ident> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -56,20 +29,10 @@ fn extract_type_ident(ty: &Type) -> Option<syn::Ident> {
 
 /// Generates the repository implementation TokenStream for the given table metadata.
 ///
-/// The produced tokens implement instance helpers (value extraction, id accessors, relation loading)
-/// and the `Repo` trait for the entity, including relation-aware cascaded save/delete logic,
-/// queries (`save`, `get_all`, `get_by_id`, `delete`) and a `find` helper. Relation handling
-/// includes generating code to load associated entities, cascade saves before/after persisting,
-/// and cascade deletes where appropriate.
-///
-/// # Examples
-///
-/// ```ignore
-/// // Given a `TableData` describing an entity, generate the repository implementation tokens:
-/// let tokens = generate_repository(&table_data);
-/// // Tokens can be inspected or emitted by a procedural macro.
-/// assert!(!tokens.to_string().is_empty());
-/// ```
+/// Instead of generating inline query logic, the macro now generates:
+/// 1. `get_relations() -> Vec<RelationDescriptor>` — a list of relation descriptors
+/// 2. Thin glue methods on the entity (`load_relations`, `save`, `delete`, etc.)
+///    that dispatch to the generic helpers in `corrosion_orm_core::model::relation_handler`.
 pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream {
     let ident = &table.ident;
     let primary_key_ty = &table.primary_key.ty;
@@ -84,19 +47,56 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
     let orm = super::orm_crate_path();
 
-    let mut load_relations_impl = Vec::new();
-    let mut cascade_save_before_impl = Vec::new();
-    let mut cascade_save_after_impl = Vec::new();
-    let mut struct_update_impl = Vec::new();
+    let relation_descriptors: Vec<_> = table
+        .relations
+        .iter()
+        .map(|rel| {
+            let field_name = rel.ident.to_string();
+            let fk_name = &rel.foreign_key;
+            let rel_type = match rel.relation_type {
+                RelationType::HasOne => quote! { #orm::schema::relation::RelationType::HasOne },
+                RelationType::HasMany => {
+                    quote! { #orm::schema::relation::RelationType::HasMany }
+                }
+                RelationType::BelongsTo => {
+                    quote! { #orm::schema::relation::RelationType::BelongsTo }
+                }
+                RelationType::BelongsToMany => {
+                    quote! { #orm::schema::relation::RelationType::BelongsToMany }
+                }
+            };
+            let target_table = match &rel.table {
+                Some(t) => quote! { #t },
+                None => {
+                    let check_type = extract_inner_type(&rel.ty);
+                    quote! { <#check_type as #orm::schema::table::TableSchema>::get_table_name() }
+                }
+            };
+            let is_eager = rel.is_eager;
+            quote! {
+                #orm::model::relation_handler::RelationDescriptor {
+                    relation_type: #rel_type,
+                    field_name: #field_name,
+                    foreign_key: #fk_name,
+                    target_table: #target_table,
+                    is_eager: #is_eager,
+                }
+            }
+        })
+        .collect();
 
-    let mut cascade_delete_before_impl = Vec::new();
-    let mut cascade_delete_after_impl = Vec::new();
+    let mut load_arms = Vec::new();
+    let mut cascade_save_before_stmts = Vec::new();
+    let mut cascade_save_after_stmts = Vec::new();
+    let mut struct_update_stmts = Vec::new();
+    let mut cascade_delete_before_stmts = Vec::new();
+    let mut cascade_delete_after_stmts = Vec::new();
 
     for rel in &table.relations {
         let rel_ident = &rel.ident;
         let rel_ty = &rel.ty;
         let fk_name_str = &rel.foreign_key;
-        let fk_column = syn::Ident::new(fk_name_str, proc_macro2::Span::call_site());
+        let field_name_str = rel.ident.to_string();
 
         if !rel.is_eager {
             continue;
@@ -104,38 +104,31 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
         match rel.relation_type {
             RelationType::HasOne | RelationType::BelongsTo => {
-                cascade_save_before_impl.push(quote! {
-                    let #rel_ident = self.#rel_ident.save(db).await?;
+                cascade_save_before_stmts.push(quote! {
+                    let #rel_ident = #orm::model::relation_handler::cascade_save_single(
+                        &self.#rel_ident, db
+                    ).await?;
                 });
 
-                struct_update_impl.push(quote! {
+                struct_update_stmts.push(quote! {
                     entity.#rel_ident = #rel_ident;
                 });
 
-                load_relations_impl.push(quote! {
-                    if let Some(loaded) = <#rel_ty as #orm::model::repository::Repo<Db>>::get_by_id(self.#rel_ident.get_id(), db).await? {
-                        self.#rel_ident = loaded;
+                load_arms.push(quote! {
+                    #field_name_str => {
+                        if let Some(loaded) = #orm::model::relation_handler::load_single::<Db, #rel_ty>(
+                            self.#rel_ident.get_id(), db
+                        ).await? {
+                            self.#rel_ident = loaded;
+                        }
                     }
                 });
 
-                cascade_delete_after_impl.push(quote! {
-                    self.#rel_ident.delete(db).await?;
+                cascade_delete_after_stmts.push(quote! {
+                    #orm::model::relation_handler::cascade_delete_single(self_mut.#rel_ident, db).await?;
                 });
             }
             RelationType::HasMany | RelationType::BelongsToMany => {
-                cascade_save_after_impl.push(quote! {
-                    let mut #rel_ident = Vec::new();
-                    for item in &self.#rel_ident {
-                        let mut __child = (*item).clone();
-                        __child.#fk_column = entity.get_id();
-                        #rel_ident.push(__child.save(db).await?);
-                    }
-                });
-
-                struct_update_impl.push(quote! {
-                    entity.#rel_ident = #rel_ident;
-                });
-
                 let inner_ty = extract_vec_inner_type(rel_ty).unwrap_or(rel_ty);
                 let inner_ident = extract_type_ident(inner_ty)
                     .unwrap_or_else(|| syn::Ident::new("Unknown", proc_macro2::Span::call_site()));
@@ -143,30 +136,62 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     &inner_ident.to_string().to_lowercase(),
                     proc_macro2::Span::call_site(),
                 );
+                let fk_ident = syn::Ident::new(fk_name_str, proc_macro2::Span::call_site());
 
-                load_relations_impl.push(quote! {
-                    let mut __children = <#inner_ty as #orm::model::repository::Repo<Db>>::find()
-                        .filter(#inner_mod_name::COLUMN.#fk_column.eq(self.get_id()))
-                        .all(db)
-                        .await?;
-                    for __child in &mut __children {
-                        __child.load_relations(db).await?;
-                    }
-                    self.#rel_ident = __children;
+                cascade_save_after_stmts.push(quote! {
+                    let #rel_ident = #orm::model::relation_handler::cascade_save_many(
+                        &self.#rel_ident,
+                        &entity.get_id(),
+                        |child, pid| { child.#fk_ident = pid.clone(); },
+                        db,
+                    ).await?;
                 });
 
-                cascade_delete_before_impl.push(quote! {
-                    let __children = <#inner_ty as #orm::model::repository::Repo<Db>>::find()
-                        .filter(#inner_mod_name::COLUMN.#fk_column.eq(entity_pk.clone()))
-                        .all(db)
-                    .await?;
-                    for item in __children {
-                        item.delete(db).await?;
+                struct_update_stmts.push(quote! {
+                    entity.#rel_ident = #rel_ident;
+                });
+
+                load_arms.push(quote! {
+                    #field_name_str => {
+                        let mut __children = #orm::model::relation_handler::load_many::<Db, #inner_ty>(
+                            #orm::query::query_type::Value::from(self.get_id()),
+                            #inner_mod_name::Column::#fk_ident,
+                            db,
+                        ).await?;
+                        for __child in &mut __children {
+                            __child.load_relations(db).await?;
+                        }
+                        self.#rel_ident = __children;
                     }
+                });
+
+                cascade_delete_before_stmts.push(quote! {
+                    #orm::model::relation_handler::cascade_delete_many::<Db, #inner_ty>(
+                        #orm::query::query_type::Value::from(entity_pk.clone()),
+                        #inner_mod_name::Column::#fk_ident,
+                        db,
+                    ).await?;
                 });
             }
         }
     }
+
+    let load_relations_body = if load_arms.is_empty() {
+        quote! { Ok(()) }
+    } else {
+        quote! {
+            for desc in <Self as #orm::model::relation_handler::RelationHandler>::get_relations() {
+                if !desc.is_eager {
+                    continue;
+                }
+                match desc.field_name {
+                    #(#load_arms)*
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
+    };
 
     quote! {
         impl #ident {
@@ -185,8 +210,13 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
             }
 
             pub(crate) async fn load_relations<Db: #orm::driver::executor::Executor>(&mut self, db: &mut Db) -> Result<(), #orm::error::CorrosionOrmError> {
-                #(#load_relations_impl)*
-                Ok(())
+                #load_relations_body
+            }
+        }
+
+        impl #orm::model::relation_handler::RelationHandler for #ident {
+            fn get_relations() -> Vec<#orm::model::relation_handler::RelationDescriptor> {
+                vec![#(#relation_descriptors),*]
             }
         }
 
@@ -202,7 +232,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 use #orm::query::InsertPlanGenerator;
                 let schema = Self::get_schema();
 
-                #(#cascade_save_before_impl)*
+                #(#cascade_save_before_stmts)*
 
                 let check_query = #orm::query::select::Select::<#mod_name::Column>::from(&schema)
                     .where_clause(
@@ -245,9 +275,8 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
                 let mut saved = db.fetch_optional::<Self>(&mut fetch_ctx).await?;
                 if let Some(ref mut entity) = saved {
-                    #(#cascade_save_after_impl)*
-
-                    #(#struct_update_impl)*
+                    #(#cascade_save_after_stmts)*
+                    #(#struct_update_stmts)*
                     entity.load_relations(db).await?;
                 }
                 saved.ok_or(#orm::driver::error::DriverError::NotFound.into())
@@ -301,8 +330,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
                 let entity_pk = self.#pk_ident.clone();
 
-
-                #(#cascade_delete_before_impl)*
+                #(#cascade_delete_before_stmts)*
 
                 let mut ctx = QueryContext::new();
                 let schema = Self::get_schema();
@@ -311,8 +339,8 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 delete_query.to_sql(&mut ctx, db.get_dialect());
                 db.execute_query(&mut ctx).await?;
 
-
-                #(#cascade_delete_after_impl)*
+                let mut self_mut = self;
+                #(#cascade_delete_after_stmts)*
 
                 Ok(())
             }
