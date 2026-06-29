@@ -22,6 +22,8 @@ pub struct RelationModel {
     pub source_table: String,
     /// Whether this relation should be eager-loaded by default.
     pub is_eager: bool,
+    /// Whether this relation should cascade insertions and deletions.
+    pub cascade: bool,
 }
 
 impl RelationModel {
@@ -47,6 +49,8 @@ pub struct RelationBuilder {
     source_table: Option<String>,
     /// Whether this relation should be eager-loaded by default.
     is_eager: Option<bool>,
+    /// Whether this relation should cascade insertions and deletions.
+    cascade: Option<bool>,
 }
 
 impl RelationBuilder {
@@ -90,6 +94,11 @@ impl RelationBuilder {
         self
     }
 
+    pub fn cascade(mut self, b: bool) -> Self {
+        self.cascade = Some(b);
+        self
+    }
+
     /// Build the `RelationModel`, consuming the builder. Panics if required fields
     /// are missing.
     pub fn build(self) -> RelationModel {
@@ -102,6 +111,7 @@ impl RelationBuilder {
             field: self.field.expect("field is required"),
             source_table: self.source_table.expect("source_table is required"),
             is_eager: self.is_eager.unwrap_or(false),
+            cascade: self.cascade.unwrap_or(false),
         }
     }
 }

@@ -98,7 +98,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
         let fk_name_str = &rel.foreign_key;
         let field_name_str = rel.ident.to_string();
 
-        if !rel.is_eager {
+        if !rel.cascade || !rel.is_eager {
             continue;
         }
 
@@ -128,7 +128,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     #orm::model::relation_handler::cascade_delete_single(self_mut.#rel_ident, db).await?;
                 });
             }
-            RelationType::HasMany | RelationType::BelongsToMany => {
+            RelationType::HasMany => {
                 let inner_ty = extract_vec_inner_type(rel_ty).unwrap_or(rel_ty);
                 let inner_ident = extract_type_ident(inner_ty)
                     .unwrap_or_else(|| syn::Ident::new("Unknown", proc_macro2::Span::call_site()));
@@ -173,6 +173,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     ).await?;
                 });
             }
+            _ => {}
         }
     }
 

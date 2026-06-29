@@ -130,6 +130,7 @@ macro_rules! parse_relation {
                 ty: $field.ty.clone(),
                 ident: $field.ident.clone().unwrap(),
                 is_eager,
+                cascade: attr.cascade,
             });
             continue;
         }
