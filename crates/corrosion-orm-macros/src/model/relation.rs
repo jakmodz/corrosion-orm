@@ -9,6 +9,8 @@ pub struct HasOneAttribute {
     pub table: Option<String>,
     #[deluxe(default = None)]
     pub foreign_key: Option<String>,
+    #[deluxe(default = true)]
+    pub cascade: bool,
 }
 
 #[derive(ExtractAttributes)]
@@ -18,6 +20,8 @@ pub struct HasManyAttribute {
     pub table: Option<String>,
     #[deluxe(default = None)]
     pub foreign_key: Option<String>,
+    #[deluxe(default = true)]
+    pub cascade: bool,
 }
 
 #[derive(ExtractAttributes)]
@@ -27,6 +31,8 @@ pub struct BelongsToAttribute {
     pub table: Option<String>,
     #[deluxe(default = None)]
     pub foreign_key: Option<String>,
+    #[deluxe(default = true)]
+    pub cascade: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -38,4 +44,5 @@ pub struct RelationDefinition {
     pub ty: syn::Type,
     pub ident: Ident,
     pub is_eager: bool,
+    pub cascade: bool,
 }
