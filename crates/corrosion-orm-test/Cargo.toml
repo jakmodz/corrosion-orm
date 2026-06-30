@@ -2,6 +2,9 @@
 name = "corrosion-orm-test"
 version = "0.1.0"
 edition = "2024"
+description = "Test utilities for Corrosion ORM"
+license = "MIT"
+repository = "https://github.com/jakmodz/corrosion-orm"
 [dependencies]
 corrosion-orm-core = {path="../corrosion-orm-core", features = ["sqlite","test-utils","log"]}
 corrosion-orm-macros = {path="../corrosion-orm-macros"}

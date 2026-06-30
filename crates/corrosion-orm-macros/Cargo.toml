@@ -2,9 +2,9 @@
 name = "corrosion-orm-macros"
 version = "0.1.0"
 edition = "2024"
-
-
-
+license = "MIT"
+repository = "https://github.com/jakmodz/corrosion-orm"
+description = "Macros for Corrosion ORM"
 [lib]
 proc-macro = true
 [dependencies]

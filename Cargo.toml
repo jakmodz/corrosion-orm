@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/corrosion-orm",
     "crates/corrosion-orm-cli",
     "crates/corrosion-orm-core",
     "crates/corrosion-orm-macros",
