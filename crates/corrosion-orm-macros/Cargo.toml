@@ -13,7 +13,7 @@ quote = {workspace = true}
 proc-macro2 = {workspace = true}
 deluxe= {workspace= true}
 anyhow = {workspace = true}
-corrosion-orm-core = {path = "../corrosion-orm-core"}
+corrosion-orm-core = {version = "0.1.0"}
 chrono = {workspace = true}
 regex = {workspace = true}
 proc-macro-crate = "3.5.0"
