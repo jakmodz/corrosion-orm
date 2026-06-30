@@ -280,13 +280,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "corrosion-orm"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "742cbc0b29c0e782c9a76508578406760308bec86c0ed9c0cc8da9cf8f45f688"
+dependencies = [
+ "corrosion-orm-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "corrosion-orm-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "corrosion-orm-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
  "clap",
- "corrosion-orm",
+ "corrosion-orm 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "trait-variant",
 ]
@@ -365,7 +375,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "clap",
- "corrosion-orm",
+ "corrosion-orm 0.1.0",
  "serde",
  "serde_json",
 ]
