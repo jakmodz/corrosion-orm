@@ -6,8 +6,8 @@ license = "MIT"
 repository = "https://github.com/jakmodz/corrosion-orm"
 description = "ORM library for Rust using SQLx and Tokio"
 [dependencies]
-corrosion-orm-core = { path = "../corrosion-orm-core" }
-corrosion-orm-macros = { path = "../corrosion-orm-macros" }
+corrosion-orm-core = { version = "0.1.0" }
+corrosion-orm-macros = { version = "0.1.0" }
 [features]
 default = ["sqlite"]
 sqlite = ["corrosion-orm-core/sqlite"]

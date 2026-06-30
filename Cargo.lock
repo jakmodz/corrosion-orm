@@ -275,8 +275,8 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 name = "corrosion-orm"
 version = "0.1.0"
 dependencies = [
- "corrosion-orm-core 0.1.0",
- "corrosion-orm-macros",
+ "corrosion-orm-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "corrosion-orm-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -315,6 +315,7 @@ checksum = "2304e866d6104f3f4b3f6b7adcaa837a7687efab66eba3651c534499ac7b784b"
 dependencies = [
  "chrono",
  "deluxe",
+ "log",
  "once_cell",
  "regex",
  "serde",
@@ -327,6 +328,23 @@ dependencies = [
 [[package]]
 name = "corrosion-orm-macros"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "corrosion-orm-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "deluxe",
+ "proc-macro-crate 3.5.0",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
+]
+
+[[package]]
+name = "corrosion-orm-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abcfa3cb27ecf120e088faa2580121a55852edabe6f563b010a320bc6ef103ac"
 dependencies = [
  "anyhow",
  "chrono",
@@ -358,7 +376,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "corrosion-orm-core 0.1.0",
- "corrosion-orm-macros",
+ "corrosion-orm-macros 0.1.0",
  "corrosion-orm-migration",
  "env_logger",
  "insta",
