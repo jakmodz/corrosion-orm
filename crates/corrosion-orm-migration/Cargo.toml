@@ -10,7 +10,7 @@ default = ["sqlite"]
 sqlite = ["corrosion-orm/sqlite"]
 log = ["corrosion-orm/log"]
 [dependencies]
-corrosion-orm = { path = "../corrosion-orm" }
+corrosion-orm = { version = "0.1.0"}
 anyhow = { workspace = true }
 chrono = { workspace = true }
 async-trait = "0.1.89"
