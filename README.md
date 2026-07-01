@@ -30,7 +30,21 @@ The project is structured as a Cargo workspace to keep concerns cleanly separate
 * [`corrosion-orm-macros`](crates/corrosion-orm-macros/): The procedural macros crate. It parses Rust structs and attributes using `syn` and `deluxe` to generate SQL mapping code.
 * [`corrosion-orm-test`](crates/corrosion-orm-test/): Integration tests that ensure the core logic and macro generations work correctly together.
 * [`corrosion-orm-cli`](crates/corrosion-orm-cli/): A command-line interface for initializing migrations.
-* [`corrosion-orm-migrations`](crates/corrosion-orm-migrations/): A crate for managing database migrations.
+* [`corrosion-orm-migration`](crates/corrosion-orm-migration/): A crate for managing database migrations.
+
+## Documentation
+
+- [Docs Home](docs/README.md)
+- [Getting Started](docs/getting-started.md)
+- [Type Mapping](docs/guides/type-mapping.md)
+- [Relations](docs/guides/relations.md)
+- [Filtering](docs/guides/filtering.md)
+- [Generated `COLUMN` / `Column` Modules](docs/guides/column-modules.md)
+- [Validation](docs/guides/validation.md)
+- [Migrations](docs/guides/migrations.md)
+- [Transactions](docs/guides/transactions.md)
+- [Macro Attributes Reference](docs/guides/attributes/README.md)
+- [Documentation Roadmap (recommended additional topics)](docs/guides/documentation-roadmap.md)
 
 ## Example
 
