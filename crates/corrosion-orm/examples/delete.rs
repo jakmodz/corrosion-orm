@@ -33,7 +33,7 @@ async fn main() -> Result<(), CorrosionOrmError> {
 
     // 5. Try to fetch the deleted user (should return None)
     let fetched = User::get_by_id(1, &mut conn).await?;
-    if let None = fetched {
+    if fetched.is_none() {
         println!("User deleted successfully");
     }
     Ok(())
