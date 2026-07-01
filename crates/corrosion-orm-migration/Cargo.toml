@@ -1,16 +1,17 @@
 [package]
 name = "corrosion-orm-migration"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
-
+license = "MIT"
+repository = "https://github.com/jakmodz/corrosion-orm"
+description = "Migration tool for Corrosion ORM"
 [features]
 default = ["sqlite"]
 sqlite = ["corrosion-orm/sqlite"]
 log = ["corrosion-orm/log"]
-
 [dependencies]
-corrosion-orm = { path = "../corrosion-orm" }
-anyhow = { workspace = true }
+corrosion-orm = { path = "../corrosion-orm", version = "0.1.1" }
+	anyhow = { workspace = true }
 chrono = { workspace = true }
 async-trait = "0.1.89"
 clap = { version = "4.6.1", features = ["derive"] }

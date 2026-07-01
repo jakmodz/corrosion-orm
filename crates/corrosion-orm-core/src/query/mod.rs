@@ -6,6 +6,9 @@
 //! - [`Insert`] - INSERT queries with column/value binding
 //! - [`Update`] - UPDATE queries with WHERE conditions
 //! - [`Delete`] - DELETE queries with WHERE conditions
+//! - [`Alter`] - ALTER TABLE queries with column modifications
+//! - [`Create`] - CREATE TABLE queries with column definitions
+//! - [`Drop`] - DROP TABLE queries
 //!
 //! # Type-Safe Column References
 //!
@@ -29,7 +32,6 @@
 //!
 //! All query builders support implicit conversion from `&TableSchemaModel`,
 //! automatically extracting table name and columns:
-//TDOO : docs
 pub mod alter;
 pub mod create;
 pub mod delete;

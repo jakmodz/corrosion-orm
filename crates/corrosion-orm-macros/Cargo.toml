@@ -1,10 +1,10 @@
 [package]
 name = "corrosion-orm-macros"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
-
-
-
+license = "MIT"
+repository = "https://github.com/jakmodz/corrosion-orm"
+description = "Macros for Corrosion ORM"
 [lib]
 proc-macro = true
 [dependencies]
@@ -13,7 +13,7 @@ quote = {workspace = true}
 proc-macro2 = {workspace = true}
 deluxe= {workspace= true}
 anyhow = {workspace = true}
-corrosion-orm-core = {path = "../corrosion-orm-core"}
+corrosion-orm-core = { path = "../corrosion-orm-core", version = "0.1.1" }
 chrono = {workspace = true}
 regex = {workspace = true}
 proc-macro-crate = "3.5.0"

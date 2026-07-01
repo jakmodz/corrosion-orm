@@ -89,7 +89,7 @@ pub(crate) fn generate_from_row(table: &TableData) -> TokenStream {
                                 let mut lazy: #rel_ty = #orm::model::lazy_collection::LazyCollection::new();
                                 let owner_id: #owner_pk_ty = row.try_get(#owner_pk_name)?;
                                 lazy.set_condition(
-                                    corrosion_orm_core::model::lazy_collection::LazyCollectionCondition::ByForeignKey {
+                                    #orm::model::lazy_collection::LazyCollectionCondition::ByForeignKey {
                                         fk_column: #child_mod::Column::#fk_column_ident,
                                         value: #orm::query::query_type::Value::from(owner_id),
                                     }

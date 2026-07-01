@@ -17,16 +17,17 @@ use crate::{
 };
 
 pub(crate) fn orm_crate_path() -> proc_macro2::TokenStream {
-    let found = crate_name("corrosion-orm")
-        .or_else(|_| crate_name("corrosion-orm-core"))
+    let found = crate_name("corrosion-orm-core")
+        .or_else(|_| crate_name("corrosion-orm"))
         .expect("corrosion-orm or corrosion-orm-core must be a dependency");
-    match found {
-        FoundCrate::Itself => quote!(crate),
-        FoundCrate::Name(name) => {
-            let ident = Ident::new(&name, Span::call_site());
-            quote!(::#ident)
-        }
-    }
+
+    let name = match &found {
+        FoundCrate::Itself => "corrosion_orm_core",
+        FoundCrate::Name(name) => name.as_str(),
+    };
+
+    let ident = Ident::new(name, Span::call_site());
+    quote!(::#ident)
 }
 
 pub(crate) fn generate_impl(table: &TableData) -> proc_macro::TokenStream {
