@@ -23,4 +23,7 @@ pub trait LocalExecutor: Sized + Send + Sync {
     ) -> Result<Option<E>, CorrosionOrmError>;
     async fn get_last_id(&mut self) -> Result<Value, CorrosionOrmError>;
     fn get_dialect(&self) -> &dyn SqlDialect;
+    fn cache_scope(&self) -> usize {
+        self as *const Self as usize
+    }
 }

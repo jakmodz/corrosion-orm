@@ -13,6 +13,7 @@ pub enum LazyCollectionCondition<C: ColumnTrait> {
     ByFilter(WhereClause<C>),
 }
 
+#[derive(Clone)]
 enum LazyCollectionStep<F, C: ColumnTrait> {
     NotLoaded(Option<LazyCollectionCondition<C>>),
     Pending(Vec<F>),
@@ -69,6 +70,7 @@ enum LazyCollectionStep<F, C: ColumnTrait> {
 ///     let employees = dept.employees.load(&mut db).await?;
 ///     assert_eq!(employees.len(), 2);
 /// ```
+#[derive(Clone)]
 pub struct LazyCollection<F, C: ColumnTrait> {
     step: LazyCollectionStep<F, C>,
 }
@@ -104,7 +106,13 @@ impl<F, C: ColumnTrait> LazyCollection<F, C> {
 
     pub async fn load<E: Executor>(&mut self, db: &mut E) -> Result<&mut Vec<F>, CorrosionOrmError>
     where
-        F: Repo<E, Column = C> + Send + Unpin + TableSchema + FromRowDb,
+        F: Repo<E, Column = C>
+            + Send
+            + Unpin
+            + TableSchema
+            + FromRowDb
+            + crate::model::CacheModel
+            + Clone,
     {
         if let LazyCollectionStep::Loaded(ref mut items) = self.step {
             return Ok(items);

@@ -10,7 +10,7 @@
 use crate::{
     CorrosionOrmError, Executor,
     driver::from_row_db::FromRowDb,
-    model::repository::Repo,
+    model::{CacheModel, repository::Repo},
     query::{WhereClause, query_type::Value},
     schema::relation::RelationType,
     types::ColumnTrait,
@@ -108,7 +108,7 @@ pub async fn load_many<Db, Child>(
 ) -> Result<Vec<Child>, CorrosionOrmError>
 where
     Db: Executor,
-    Child: Repo<Db> + Send + Unpin + FromRowDb,
+    Child: Repo<Db> + Send + Unpin + FromRowDb + CacheModel + Clone,
     Child::Column: ColumnTrait,
 {
     Child::find()
@@ -141,7 +141,7 @@ pub async fn cascade_delete_many<Db, Child>(
 ) -> Result<(), CorrosionOrmError>
 where
     Db: Executor,
-    Child: Repo<Db> + Send + Unpin + FromRowDb,
+    Child: Repo<Db> + Send + Unpin + FromRowDb + CacheModel + Clone,
     Child::Column: ColumnTrait,
 {
     let children = Child::find()

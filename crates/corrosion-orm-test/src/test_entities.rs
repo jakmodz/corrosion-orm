@@ -55,7 +55,7 @@ pub struct Post {
     pub user: User,
 }
 
-#[derive(Model, Default)]
+#[derive(Model, Default, Clone)]
 pub struct Teacher {
     #[Column(name = "id")]
     #[PrimaryKey]

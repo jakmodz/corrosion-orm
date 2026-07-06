@@ -46,7 +46,14 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
         syn::Ident::new(&table.primary_key.name, proc_macro2::Span::call_site());
 
     let orm = super::orm_crate_path();
-
+    let cache_ident = syn::Ident::new(
+        &format!("{}_CACHE", ident.to_string().to_ascii_uppercase()),
+        proc_macro2::Span::call_site(),
+    );
+    let query_cache_ident = syn::Ident::new(
+        &format!("{}_QUERY_CACHE", ident.to_string().to_ascii_uppercase()),
+        proc_macro2::Span::call_site(),
+    );
     let relation_descriptors: Vec<_> = table
         .relations
         .iter()
@@ -195,6 +202,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
     };
 
     quote! {
+
         impl #ident {
             /// Returns the strongly-typed primary key for this entity
             pub fn get_id(&self) -> #primary_key_ty {
@@ -220,6 +228,33 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 vec![#(#relation_descriptors),*]
             }
         }
+        static #cache_ident: std::sync::LazyLock<#orm::model::cache::TieredEntityCache<(usize, #primary_key_ty), #ident>> = std::sync::LazyLock::new(|| {
+            #orm::model::cache::TieredEntityCache::new(
+                10_000,
+                std::time::Duration::from_secs(5 * 60),
+                std::time::Duration::from_secs(3 * 60),
+            )
+        });
+
+        static #query_cache_ident: std::sync::LazyLock<#orm::model::cache::TieredQueryCache<String, Vec<#primary_key_ty>>> = std::sync::LazyLock::new(|| {
+            #orm::model::cache::TieredQueryCache::new(10_000)
+        });
+
+        impl #orm::model::cache::CacheModel for #ident {
+            type PrimaryKey = #primary_key_ty;
+
+            fn cache_id(&self) -> Self::PrimaryKey {
+                self.get_id()
+            }
+
+            fn entity_cache() -> &'static #orm::model::cache::TieredEntityCache<(usize, Self::PrimaryKey), Self> {
+                &#cache_ident
+            }
+
+            fn query_cache() -> &'static #orm::model::cache::TieredQueryCache<String, Vec<Self::PrimaryKey>> {
+                &#query_cache_ident
+            }
+        }
 
         impl<Db: #orm::driver::executor::Executor> #orm::model::repository::Repo<Db> for #ident {
             type PrimaryKey = #primary_key_ty;
@@ -231,6 +266,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 use #orm::query::where_clause::WhereClause;
                 use #orm::query::query_type::QueryContext;
                 use #orm::query::InsertPlanGenerator;
+                let __cache_scope = #orm::model::cache::scope_id(db);
                 let schema = Self::get_schema();
 
                 #(#cascade_save_before_stmts)*
@@ -259,9 +295,6 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     update_query.to_sql(&mut ctx, db.get_dialect());
                     db.execute_query(&mut ctx).await?;
                 }
-
-                use #orm::types::generation_strategy::GenerationType;
-
                 let mut fetch_ctx = QueryContext::new();
                 let last_id = if existing.is_none()
                     && schema.primary_key.generation_type.is_some()
@@ -279,6 +312,8 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     #(#cascade_save_after_stmts)*
                     #(#struct_update_stmts)*
                     entity.load_relations(db).await?;
+                    #orm::model::cache::put_entity(__cache_scope, entity).await;
+                    #orm::model::cache::invalidate_queries::<Self>();
                 }
                 saved.ok_or(#orm::driver::error::DriverError::NotFound.into())
             }
@@ -286,8 +321,30 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
             async fn get_all(db: &mut Db) -> Result<Vec<Self>, #orm::error::CorrosionOrmError> {
                 use #orm::query::to_sql::ToSql;
                 use #orm::schema::table::TableSchema;
-                use #orm::query::where_clause::WhereClause;
                 use #orm::query::query_type::QueryContext;
+
+                let __cache_scope = #orm::model::cache::scope_id(db);
+                let query_cache_key = "__repo_get_all__".to_string();
+                if let Some(ids) = #orm::model::cache::get_query_ids::<Self>(__cache_scope, &query_cache_key) {
+                    let mut cached_results = Vec::with_capacity(ids.len());
+                    let mut cache_complete = true;
+
+                    for id in ids {
+                        if let Some(entity) = #orm::model::cache::get_entity::<Self>(__cache_scope, &id) {
+                            cached_results.push(entity);
+                        } else {
+                            cache_complete = false;
+                            break;
+                        }
+                    }
+
+                    if cache_complete {
+                        for entity in &mut cached_results {
+                            entity.load_relations(db).await?;
+                        }
+                        return Ok(cached_results);
+                    }
+                }
 
                 let mut ctx = QueryContext::new();
                 let schema = Self::get_schema();
@@ -295,9 +352,13 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 query.to_sql(&mut ctx, db.get_dialect());
                 let mut results = db.fetch_all::<Self>(&mut ctx).await?;
 
+                let mut ids = Vec::with_capacity(results.len());
                 for result in &mut results {
                     result.load_relations(db).await?;
+                    ids.push(result.get_id());
+                    #orm::model::cache::put_entity(__cache_scope, result).await;
                 }
+                #orm::model::cache::put_query_ids::<Self>(__cache_scope, query_cache_key, ids).await;
                 Ok(results)
             }
 
@@ -307,19 +368,24 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 use #orm::query::where_clause::WhereClause;
                 use #orm::query::query_type::QueryContext;
 
+                let __cache_scope = #orm::model::cache::scope_id(db);
+                if let Some(entity) = #orm::model::cache::get_entity::<Self>(__cache_scope, &id) {
+                    return Ok(Some(entity));
+                }
+
                 let mut ctx = QueryContext::new();
                 let schema = Self::get_schema();
                 let query = #orm::query::select::Select::<#mod_name::Column>::from(&schema)
                     .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, id.clone()));
                 query.to_sql(&mut ctx, db.get_dialect());
-                let result = db.fetch_optional::<Self>(&mut ctx).await?;
+                let mut result = db.fetch_optional::<Self>(&mut ctx).await?;
 
-                if let Some(mut entity) = result {
+                if let Some(ref mut entity) = result {
                     entity.load_relations(db).await?;
-                    Ok(Some(entity))
-                } else {
-                    Ok(None)
+                    #orm::model::cache::put_entity(__cache_scope, entity).await;
                 }
+
+                Ok(result)
             }
 
             async fn delete(self, db: &mut Db) -> Result<(), #orm::error::CorrosionOrmError> {
@@ -329,20 +395,22 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 use #orm::query::query_type::QueryContext;
                 use #orm::query::delete::Delete;
 
-                let entity_pk = self.#pk_ident.clone();
+                let __cache_scope = #orm::model::cache::scope_id(db);
+                let entity_pk = self.get_id();
 
                 #(#cascade_delete_before_stmts)*
 
                 let mut ctx = QueryContext::new();
                 let schema = Self::get_schema();
                 let delete_query = Delete::<#mod_name::Column>::from(&schema)
-                    .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, entity_pk));
+                    .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, entity_pk.clone()));
                 delete_query.to_sql(&mut ctx, db.get_dialect());
                 db.execute_query(&mut ctx).await?;
 
                 let mut self_mut = self;
                 #(#cascade_delete_after_stmts)*
-
+                #orm::model::cache::invalidate_entity::<Self>(__cache_scope, &entity_pk).await;
+                #orm::model::cache::invalidate_queries::<Self>();
                 Ok(())
             }
 

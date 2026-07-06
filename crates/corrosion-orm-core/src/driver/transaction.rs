@@ -7,15 +7,22 @@ use crate::{
     error::CorrosionOrmError,
     query::query_type::{QueryContext, Value},
 };
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static NEXT_TRANSACTION_CACHE_SCOPE: AtomicUsize = AtomicUsize::new(1_000_000);
 
 pub struct Transaction<P: ConnectionPool> {
     conn: Option<P::Conn>,
+    cache_scope: usize,
 }
 
 impl<P: ConnectionPool> Transaction<P> {
     /// Creates a new transaction with the given connection.
     pub fn new(conn: P::Conn) -> Self {
-        Self { conn: Some(conn) }
+        Self {
+            conn: Some(conn),
+            cache_scope: NEXT_TRANSACTION_CACHE_SCOPE.fetch_add(1, Ordering::Relaxed),
+        }
     }
 
     /// Commits the transaction.
@@ -65,6 +72,10 @@ impl<P: ConnectionPool> Executor for Transaction<P> {
             .as_ref()
             .expect("Transaction connection closed")
             .get_dialect()
+    }
+
+    fn cache_scope(&self) -> usize {
+        self.cache_scope
     }
 
     async fn fetch_one<E: FromRowDb + Send + Unpin>(

@@ -82,7 +82,10 @@
 //! - [`crate::model::CursorPaginator`] - Cursor-based pagination for large datasets,
 //!   real-time data, and consistent O(1) performance
 use crate::{
-    CorrosionOrmError, Executor, driver::from_row_db::FromRowDb, model::Finder, types::ColumnTrait,
+    CorrosionOrmError, Executor,
+    driver::from_row_db::FromRowDb,
+    model::{CacheModel, Finder},
+    types::ColumnTrait,
 };
 
 pub struct Paginator<'query, T, E: Executor, C: ColumnTrait> {
@@ -93,7 +96,7 @@ pub struct Paginator<'query, T, E: Executor, C: ColumnTrait> {
 
 impl<'query, T, E: Executor, C: ColumnTrait> Paginator<'query, T, E, C>
 where
-    T: Send + Unpin + FromRowDb,
+    T: Send + Unpin + FromRowDb + CacheModel + Clone,
 {
     pub fn new(finder: Finder<'query, T, E, C>, page_size: usize) -> Self {
         Self {

@@ -749,7 +749,7 @@ mod tests {
 
         Ok(())
     }
-    #[derive(Model)]
+    #[derive(Model, Clone)]
     #[Table(name = "countries")]
     #[Index(name = "idx_countries_id", fields = ["id"], unique = true)]
     pub struct Country {
@@ -807,7 +807,7 @@ mod tests {
         );
         Ok(())
     }
-    #[derive(Model)]
+    #[derive(Model, Clone)]
     #[Table(name = "articles_lazy")]
     pub struct ArticleLazy {
         #[Column(name = "id")]
@@ -827,7 +827,7 @@ mod tests {
         pub name: String,
     }
 
-    #[derive(Model)]
+    #[derive(Model, Clone)]
     #[Table(name = "departments_lazy")]
     pub struct DepartmentLazy {
         #[Column(name = "id")]

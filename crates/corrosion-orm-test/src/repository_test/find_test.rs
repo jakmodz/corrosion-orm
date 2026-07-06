@@ -212,7 +212,7 @@ mod tests {
 
         Ok(())
     }
-    #[derive(Model)]
+    #[derive(Model, Clone)]
     #[Table(name = "date_posts")]
     struct Post {
         #[PrimaryKey]

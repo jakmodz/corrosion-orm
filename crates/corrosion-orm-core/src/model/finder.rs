@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     CorrosionOrmError, Executor,
     driver::from_row_db::FromRowDb,
-    model::{cursor_paginator::CursorPaginator, paginator::Paginator},
+    model::{CacheModel, cursor_paginator::CursorPaginator, paginator::Paginator},
     prelude::QueryContext,
     query::{Select, ToSql, WhereClause, order_by::OrderBy},
     types::ColumnTrait,
@@ -78,29 +78,65 @@ where
         }
     }
     /// Returns a paginator for this finder with the given page size.
-    pub fn paginate(self, page_size: usize) -> Paginator<'query, T, E, C> {
+    pub fn paginate(self, page_size: usize) -> Paginator<'query, T, E, C>
+    where
+        T: CacheModel + Clone,
+    {
         Paginator::new(self, page_size)
     }
     /// Returns a cursor paginator for this finder with the given page size.
     pub fn cursor_paginate(self, page_size: usize) -> CursorPaginator<'query, T, E, C>
     where
-        T: Clone,
+        T: CacheModel + Clone,
     {
         CursorPaginator::new(self, page_size)
     }
     /// Fetches a single row from the query.
-    pub async fn one(self, executor: &mut E) -> Result<T, CorrosionOrmError> {
+    #[cfg(feature = "cache")]
+    pub async fn one(self, executor: &mut E) -> Result<T, CorrosionOrmError>
+    where
+        T: CacheModel + Clone,
+    {
+        let cache_scope = crate::model::cache::scope_id(executor);
         let mut ctx = QueryContext::new();
         self.query.to_sql(&mut ctx, executor.get_dialect());
-        let res = executor.fetch_one(&mut ctx).await?;
+
+        let res = executor.fetch_one::<T>(&mut ctx).await?;
+        crate::model::cache::put_entity(cache_scope, &res).await;
         Ok(res)
     }
 
     /// Fetches all rows from the query.
-    pub async fn all(self, executor: &mut E) -> Result<Vec<T>, CorrosionOrmError> {
+    #[cfg(feature = "cache")]
+    pub async fn all(self, executor: &mut E) -> Result<Vec<T>, CorrosionOrmError>
+    where
+        T: CacheModel + Clone,
+    {
+        let cache_scope = crate::model::cache::scope_id(executor);
         let mut ctx = QueryContext::new();
         self.query.to_sql(&mut ctx, executor.get_dialect());
-        let res = executor.fetch_all(&mut ctx).await?;
+
+        let res = executor.fetch_all::<T>(&mut ctx).await?;
+        for item in &res {
+            crate::model::cache::put_entity(cache_scope, item).await;
+        }
+        Ok(res)
+    }
+    #[cfg(not(feature = "cache"))]
+    pub async fn one(self, executor: &mut E) -> Result<T, CorrosionOrmError> {
+        let mut ctx = QueryContext::new();
+        self.query.to_sql(&mut ctx, executor.get_dialect());
+        let res = executor.fetch_one::<T>(&mut ctx).await?;
+        Ok(res)
+    }
+    #[cfg(not(feature = "cache"))]
+    pub async fn all(self, executor: &mut E) -> Result<Vec<T>, CorrosionOrmError>
+    where
+        T: FromRowDb,
+    {
+        let mut ctx = QueryContext::new();
+        self.query.to_sql(&mut ctx, executor.get_dialect());
+        let res = executor.fetch_all::<T>(&mut ctx).await?;
         Ok(res)
     }
 }
