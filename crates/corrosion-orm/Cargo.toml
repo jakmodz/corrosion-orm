@@ -7,10 +7,11 @@ repository = "https://github.com/jakmodz/corrosion-orm"
 description = "ORM library for Rust using SQLx and Tokio"
 [dependencies]
 corrosion-orm-core = { path = "../corrosion-orm-core", version = "0.1.1" }
-	corrosion-orm-macros = { path = "../corrosion-orm-macros", version = "0.1.1" }
+corrosion-orm-macros = { path = "../corrosion-orm-macros", version = "0.1.1" }
 tokio = { workspace = true }
 [features]
 default = ["sqlite"]
 sqlite = ["corrosion-orm-core/sqlite"]
 log = ["corrosion-orm-core/log"]
 test-utils = ["corrosion-orm-core/test-utils"]
+cache = ["corrosion-orm-core/cache"]
