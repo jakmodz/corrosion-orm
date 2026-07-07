@@ -2,8 +2,6 @@ use std::{hash::Hash, time::Duration};
 
 #[cfg(not(feature = "cache"))]
 use std::marker::PhantomData;
-#[cfg(feature = "cache")]
-use std::{collections::HashMap, sync::RwLock};
 
 use crate::query::query_type::QueryContext;
 
@@ -123,7 +121,7 @@ where
 /// - L2: moka cache (when `cache` feature is enabled)
 #[cfg(feature = "cache")]
 pub struct TieredEntityCache<K, V> {
-    l1: RwLock<HashMap<K, V>>,
+    l1: moka::future::Cache<K, V>,
     l2: moka::future::Cache<K, V>,
 }
 
@@ -135,7 +133,10 @@ where
 {
     pub fn new(capacity: usize, ttl: Duration, tti: Duration) -> Self {
         Self {
-            l1: RwLock::new(HashMap::new()),
+            l1: moka::future::CacheBuilder::new(capacity)
+                .time_to_live(ttl)
+                .time_to_idle(tti)
+                .build(),
             l2: moka::future::CacheBuilder::new(capacity)
                 .time_to_live(ttl)
                 .time_to_idle(tti)
@@ -147,11 +148,22 @@ where
     where
         K: Eq + Hash,
     {
-        self.l1
-            .write()
-            .expect("tiered entity cache L1 write lock poisoned")
-            .clear();
+        self.l1.invalidate_all();
         self.l2.invalidate_all();
+    }
+}
+
+#[cfg(feature = "cache")]
+impl<K, V> TieredEntityCache<K, V>
+where
+    K: Eq + Hash + Send + Sync + 'static,
+    V: Clone + Send + Sync + 'static,
+{
+    pub fn get(&self, key: &K) -> Option<V> {
+        if let Some(v) = self.l1.get(key) {
+            return Some(v);
+        }
+        self.l2.get(key)
     }
 }
 
@@ -161,41 +173,13 @@ where
     K: Clone + Eq + Hash + Send + Sync + 'static,
     V: Clone + Send + Sync + 'static,
 {
-    pub fn get(&self, key: &K) -> Option<V> {
-        if let Some(v) = self
-            .l1
-            .read()
-            .expect("tiered entity cache L1 read lock poisoned")
-            .get(key)
-            .cloned()
-        {
-            return Some(v);
-        }
-
-        if let Some(v) = self.l2.get(key) {
-            self.l1
-                .write()
-                .expect("tiered entity cache L1 write lock poisoned")
-                .insert(key.clone(), v.clone());
-            return Some(v);
-        }
-
-        None
-    }
-
     pub async fn insert(&self, key: K, value: V) {
-        self.l1
-            .write()
-            .expect("tiered entity cache L1 write lock poisoned")
-            .insert(key.clone(), value.clone());
+        self.l1.insert(key.clone(), value.clone()).await;
         self.l2.insert(key, value).await;
     }
 
     pub async fn invalidate(&self, key: &K) {
-        self.l1
-            .write()
-            .expect("tiered entity cache L1 write lock poisoned")
-            .remove(key);
+        self.l1.invalidate(key).await;
         self.l2.invalidate(key).await;
     }
 }
@@ -223,7 +207,7 @@ impl<K, V> TieredEntityCache<K, V> {
 /// Unified two-level cache for query index results.
 #[cfg(feature = "cache")]
 pub struct TieredQueryCache<K, V> {
-    l1: RwLock<HashMap<K, V>>,
+    l1: moka::future::Cache<K, V>,
     l2: moka::future::Cache<K, V>,
 }
 
@@ -235,7 +219,7 @@ where
 {
     pub fn new(capacity: usize) -> Self {
         Self {
-            l1: RwLock::new(HashMap::new()),
+            l1: moka::future::CacheBuilder::new(capacity).build(),
             l2: moka::future::CacheBuilder::new(capacity).build(),
         }
     }
@@ -244,11 +228,22 @@ where
     where
         K: Eq + Hash,
     {
-        self.l1
-            .write()
-            .expect("tiered query cache L1 write lock poisoned")
-            .clear();
+        self.l1.invalidate_all();
         self.l2.invalidate_all();
+    }
+}
+
+#[cfg(feature = "cache")]
+impl<K, V> TieredQueryCache<K, V>
+where
+    K: Eq + Hash + Send + Sync + 'static,
+    V: Clone + Send + Sync + 'static,
+{
+    pub fn get(&self, key: &K) -> Option<V> {
+        if let Some(v) = self.l1.get(key) {
+            return Some(v);
+        }
+        self.l2.get(key)
     }
 }
 
@@ -258,41 +253,13 @@ where
     K: Clone + Eq + Hash + Send + Sync + 'static,
     V: Clone + Send + Sync + 'static,
 {
-    pub fn get(&self, key: &K) -> Option<V> {
-        if let Some(v) = self
-            .l1
-            .read()
-            .expect("tiered query cache L1 read lock poisoned")
-            .get(key)
-            .cloned()
-        {
-            return Some(v);
-        }
-
-        if let Some(v) = self.l2.get(key) {
-            self.l1
-                .write()
-                .expect("tiered query cache L1 write lock poisoned")
-                .insert(key.clone(), v.clone());
-            return Some(v);
-        }
-
-        None
-    }
-
     pub async fn insert(&self, key: K, value: V) {
-        self.l1
-            .write()
-            .expect("tiered query cache L1 write lock poisoned")
-            .insert(key.clone(), value.clone());
+        self.l1.insert(key.clone(), value.clone()).await;
         self.l2.insert(key, value).await;
     }
 
     pub async fn invalidate(&self, key: &K) {
-        self.l1
-            .write()
-            .expect("tiered query cache L1 write lock poisoned")
-            .remove(key);
+        self.l1.invalidate(key).await;
         self.l2.invalidate(key).await;
     }
 }
