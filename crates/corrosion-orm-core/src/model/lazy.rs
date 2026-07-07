@@ -4,10 +4,12 @@ use crate::model::repository::Repo;
 
 use crate::{CorrosionOrmError, Executor, query::query_type::Value};
 
+#[derive(Clone)]
 pub enum LazyCondition {
     ById(Value),
 }
 
+#[derive(Clone)]
 pub(crate) enum LazyStep<F> {
     NotLoaded(Option<LazyCondition>),
     Pending(F),
@@ -97,6 +99,7 @@ pub(crate) enum LazyStep<F> {
 ///     let author = article.author.load(&mut db).await?;
 ///     assert_eq!(author.name, "Alice");
 /// ```
+#[derive(Clone)]
 pub struct Lazy<F> {
     step: LazyStep<F>,
 }

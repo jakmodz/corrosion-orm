@@ -1,6 +1,6 @@
 use corrosion_orm::{Model, sqlx::types::chrono};
 
-#[derive(Model)]
+#[derive(Model, Clone)]
 #[Table(name = "__migration_registry")]
 pub struct MigrationRegistry {
     #[Column(generation_strategy = {auto_increment})]

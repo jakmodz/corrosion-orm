@@ -53,6 +53,7 @@ let users = User::find()
 |---------|-------------|
 | `sqlite` | Sqlite backend driver |
 | `log`    | Logging for queries   |
+| `cache`  | Caching for entities Note: The models gotta #[derive(Clone)] |
 
 # Core Guides
 

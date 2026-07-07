@@ -1,7 +1,7 @@
 use corrosion_orm::Model;
 use corrosion_orm::prelude::*;
 
-#[derive(Model, Debug)]
+#[derive(Model, Debug, Clone)]
 #[Table(name = "users")]
 pub struct User {
     #[PrimaryKey]

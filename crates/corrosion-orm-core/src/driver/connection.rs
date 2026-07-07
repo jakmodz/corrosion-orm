@@ -48,10 +48,16 @@ pub trait Connection: Sized + Sync + Send {
     /// Returns the SQL dialect for this connection.
     fn get_dialect(&self) -> &dyn SqlDialect;
     fn rollback_blocking(&mut self) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let _ = self.rollback_transaction().await;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    let _ = self.rollback_transaction().await;
+                });
             });
-        });
+        }));
+        if result.is_err() {
+            #[cfg(feature = "log")]
+            log::error!("Panic occurred during blocking rollback; rollback may not have completed");
+        }
     }
 }

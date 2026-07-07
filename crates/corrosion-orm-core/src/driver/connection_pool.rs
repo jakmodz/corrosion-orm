@@ -7,14 +7,21 @@ use crate::{
     query::query_type::{QueryContext, Value},
 };
 use std::ops::{Deref, DerefMut};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static NEXT_CACHE_SCOPE: AtomicUsize = AtomicUsize::new(1);
 
 pub struct ConnectionGuard<P: ConnectionPool> {
     conn: P::Conn,
+    cache_scope: usize,
 }
 
 impl<P: ConnectionPool> ConnectionGuard<P> {
     pub(crate) fn new(conn: P::Conn) -> Self {
-        Self { conn }
+        Self {
+            conn,
+            cache_scope: NEXT_CACHE_SCOPE.fetch_add(1, Ordering::Relaxed),
+        }
     }
 }
 
@@ -54,6 +61,10 @@ impl<P: ConnectionPool> Executor for ConnectionGuard<P> {
 
     fn get_dialect(&self) -> &dyn SqlDialect {
         self.conn.get_dialect()
+    }
+
+    fn cache_scope(&self) -> usize {
+        self.cache_scope
     }
 
     async fn fetch_one<E: FromRowDb + Send + Unpin>(

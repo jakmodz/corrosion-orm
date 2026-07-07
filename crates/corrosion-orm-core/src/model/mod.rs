@@ -1,4 +1,5 @@
 //! Repository trait for database operations on entities.
+pub mod cache;
 pub mod cursor_paginator;
 pub mod finder;
 pub mod lazy;
@@ -7,6 +8,7 @@ pub mod paginator;
 pub mod relation_handler;
 pub mod repository;
 pub mod snapshot;
+pub use cache::{CacheModel, TieredEntityCache, TieredQueryCache, build_query_key};
 pub use cursor_paginator::CursorPaginator;
 pub use finder::Finder;
 pub use lazy::Lazy;

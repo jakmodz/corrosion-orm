@@ -12,7 +12,7 @@ pub struct Capital {
     pub population: i32,
 }
 
-#[derive(Model)]
+#[derive(Model, Clone)]
 #[Table(name = "countries")]
 pub struct Country {
     #[PrimaryKey]
@@ -33,7 +33,7 @@ pub struct Author {
     pub bio: String,
 }
 
-#[derive(Model)]
+#[derive(Model, Clone)]
 #[Table(name = "articles")]
 pub struct Article {
     #[PrimaryKey]
@@ -56,7 +56,7 @@ pub struct Employee {
     pub department_id: i32,
 }
 
-#[derive(Model)]
+#[derive(Model, Clone)]
 #[Table(name = "departments")]
 pub struct Department {
     #[PrimaryKey]
