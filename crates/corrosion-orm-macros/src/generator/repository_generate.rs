@@ -339,9 +339,6 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     }
 
                     if cache_complete {
-                        for entity in &mut cached_results {
-                            entity.load_relations(db).await?;
-                        }
                         return Ok(cached_results);
                     }
                 }
