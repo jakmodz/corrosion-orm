@@ -37,7 +37,7 @@ mod tests {
         }
     }
 
-    fn render_update(update: Update<Col>) -> (String, Vec<Value>) {
+    fn render_update(update: Update) -> (String, Vec<Value>) {
         let mut ctx = QueryContext::new();
         update.to_sql(&mut ctx, &MockSqliteDialect);
         (ctx.sql, ctx.values)
@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn test_update_single_column() {
-        let update: Update<Col> = Update::new()
+        let update: Update = Update::new()
             .table(Cow::Owned("users".to_string()))
             .columns(vec![Cow::Owned("id".to_string())])
             .values(vec![Value::Int(1)]);
@@ -54,7 +54,7 @@ mod tests {
     }
     #[test]
     fn test_update_multiple_columns() {
-        let update: Update<Col> = Update::new()
+        let update: Update = Update::new()
             .table(Cow::Owned("users".to_string()))
             .columns(vec![
                 Cow::Owned("id".to_string()),

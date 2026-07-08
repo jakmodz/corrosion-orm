@@ -46,7 +46,7 @@ use super::where_clause::WhereClause;
 pub struct Select<'query, C: ColumnTrait> {
     table: Cow<'query, str>,
     columns: Vec<Cow<'query, str>>,
-    where_clause: Option<WhereClause<C>>,
+    where_clause: Option<WhereClause>,
     order_by: Option<OrderClause<C>>,
     limit: Option<usize>,
     offset: Option<usize>,
@@ -128,9 +128,9 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
     /// #     fn table_name(&self) -> &'static str { "users" }
     /// #     fn column_name(&self) -> &'static str { "id" }
     /// # }
-    /// let select = Select::new("users").where_clause(WhereClause::eq(MockColumn::Id, 1));
+    /// let select: Select<'_, MockColumn> = Select::new("users").where_clause(WhereClause::eq(MockColumn::Id, 1));
     /// ```
-    pub fn where_clause(mut self, where_clause: WhereClause<C>) -> Self {
+    pub fn where_clause(mut self, where_clause: WhereClause) -> Self {
         self.where_clause = Some(where_clause);
         self
     }
@@ -201,12 +201,30 @@ impl<'col, C: ColumnTrait> Select<'col, C> {
         &self.columns
     }
     #[cfg(feature = "test-utils")]
-    pub fn get_where_clause(&self) -> Option<&WhereClause<C>> {
+    pub fn get_where_clause(&self) -> Option<&WhereClause> {
         self.where_clause.as_ref()
     }
     #[cfg(feature = "test-utils")]
     pub fn get_limit(&self) -> Option<usize> {
         self.limit
+    }
+
+    /// Build JOIN clauses for all eager HasOne / BelongsTo relations in the schema.
+    fn build_eager_joins(schema: &'col TableSchemaModel) -> Option<Vec<Join<'col>>> {
+        let joins: Vec<Join> = schema
+            .relations
+            .iter()
+            .filter(|r| {
+                r.is_eager
+                    && matches!(
+                        r.relation_type,
+                        crate::schema::relation::RelationType::HasOne
+                            | crate::schema::relation::RelationType::BelongsTo
+                    )
+            })
+            .filter_map(|r| Join::from_relation(r).ok())
+            .collect();
+        if joins.is_empty() { None } else { Some(joins) }
     }
 }
 impl<C: ColumnTrait> ToSql for Select<'_, C> {
@@ -308,21 +326,7 @@ impl<'col, C: ColumnTrait> From<&'col TableSchemaModel> for Select<'col, C> {
             order_by: None,
             limit: None,
             offset: None,
-            joins: Some(
-                schema
-                    .relations
-                    .iter()
-                    .filter(|r| {
-                        r.is_eager
-                            && matches!(
-                                r.relation_type,
-                                crate::schema::relation::RelationType::HasOne
-                                    | crate::schema::relation::RelationType::BelongsTo
-                            )
-                    })
-                    .filter_map(|r| Join::from_relation(r).ok())
-                    .collect(),
-            ),
+            joins: Self::build_eager_joins(schema),
         }
     }
 }
@@ -361,6 +365,37 @@ impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
             columns.push(Cow::Owned(format!("{}.{}", schema.name, col)));
         }
 
+        let joins: Option<Vec<Join>> = {
+            let j: Vec<Join> = schema
+                .relations
+                .iter()
+                .filter(|r| {
+                    r.is_eager
+                        && matches!(
+                            r.relation_type,
+                            crate::schema::relation::RelationType::HasOne
+                                | crate::schema::relation::RelationType::BelongsTo
+                        )
+                })
+                .map(|r| {
+                    let left = format!("{}.{}", r.source_table, r.foreign_key);
+                    let right = format!("{}.{}", r.table, r.target_key);
+                    let ty = match r.relation_type {
+                        crate::schema::relation::RelationType::HasOne
+                        | crate::schema::relation::RelationType::HasMany => {
+                            crate::query::join::JoinType::Left
+                        }
+                        crate::schema::relation::RelationType::BelongsTo => {
+                            crate::query::join::JoinType::Inner
+                        }
+                        _ => crate::query::join::JoinType::Left,
+                    };
+                    Join::new(Cow::Owned(r.table.clone()), left, right, ty)
+                })
+                .collect();
+            if j.is_empty() { None } else { Some(j) }
+        };
+
         Self {
             table: Cow::Owned(schema.name),
             columns,
@@ -368,7 +403,7 @@ impl<'col, C: ColumnTrait> From<TableSchemaModel> for Select<'col, C> {
             order_by: None,
             limit: None,
             offset: None,
-            joins: None,
+            joins,
         }
     }
 }

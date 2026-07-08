@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{User, init_sqlite, user};
-    use corrosion_orm_core::prelude::*;
+    use corrosion_orm_core::{model::repository::Repo, prelude::*};
     use corrosion_orm_macros::Model;
     const USER_COUNT: usize = 5;
     async fn init_users(conn: &mut impl Executor, n: usize) -> Result<(), CorrosionOrmError> {
@@ -268,6 +268,226 @@ mod tests {
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].id, 1);
         assert_eq!(posts[0].date_time, date_time);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_find_with_two_tables() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        let mut ctx = QueryContext::from_model(Post::get_schema(), conn.get_dialect());
+        conn.execute_query(&mut ctx).await?;
+        let user = User {
+            id: 1,
+            name: "test".to_string(),
+        };
+        for i in 0..6 {
+            let post = crate::Post {
+                id: i,
+                teacher_id: 1,
+                user: user.clone(),
+            };
+            post.save(&mut conn).await?;
+        }
+        let post = crate::Post {
+            id: 1,
+            teacher_id: 1,
+            user: User {
+                id: 1000,
+                name: "different".to_string(),
+            },
+        };
+        post.save(&mut conn).await?;
+        let posts = crate::Post::find()
+            .filter(crate::user::COLUMN.id.eq(1))
+            .all(&mut conn)
+            .await?;
+
+        assert_eq!(posts.len(), 5);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_find_with_two_tables_in() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        let mut ctx = QueryContext::from_model(Post::get_schema(), conn.get_dialect());
+        conn.execute_query(&mut ctx).await?;
+        let user = User {
+            id: 1,
+            name: "test".to_string(),
+        };
+        for i in 0..6 {
+            let post = crate::Post {
+                id: i,
+                teacher_id: 1,
+                user: user.clone(),
+            };
+            post.save(&mut conn).await?;
+        }
+        let post = crate::Post {
+            id: 1,
+            teacher_id: 1,
+            user: User {
+                id: 1000,
+                name: "different".to_string(),
+            },
+        };
+        post.save(&mut conn).await?;
+        let posts = crate::Post::find()
+            .filter(crate::user::COLUMN.id.in_(vec![1, 1000]))
+            .all(&mut conn)
+            .await?;
+
+        assert_eq!(posts.len(), 6);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_find_with_two_tables_ne() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        let mut ctx = QueryContext::from_model(Post::get_schema(), conn.get_dialect());
+        conn.execute_query(&mut ctx).await?;
+        let user = User {
+            id: 1,
+            name: "test".to_string(),
+        };
+        for i in 0..6 {
+            let post = crate::Post {
+                id: i,
+                teacher_id: 1,
+                user: user.clone(),
+            };
+            post.save(&mut conn).await?;
+        }
+        let post = crate::Post {
+            id: 1,
+            teacher_id: 1,
+            user: User {
+                id: 1000,
+                name: "different".to_string(),
+            },
+        };
+        post.save(&mut conn).await?;
+        let posts = crate::Post::find()
+            .filter(crate::user::COLUMN.id.ne(1))
+            .all(&mut conn)
+            .await?;
+
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].user.id, 1000);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_find_with_two_tables_name_starts_with() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        let mut ctx = QueryContext::from_model(Post::get_schema(), conn.get_dialect());
+        conn.execute_query(&mut ctx).await?;
+        let user = User {
+            id: 1,
+            name: "test".to_string(),
+        };
+        for i in 0..6 {
+            let post = crate::Post {
+                id: i,
+                teacher_id: 1,
+                user: user.clone(),
+            };
+            post.save(&mut conn).await?;
+        }
+        let post = crate::Post {
+            id: 1,
+            teacher_id: 1,
+            user: User {
+                id: 1000,
+                name: "different".to_string(),
+            },
+        };
+        post.save(&mut conn).await?;
+        let posts = crate::Post::find()
+            .filter(crate::user::COLUMN.name.starts_with("test"))
+            .all(&mut conn)
+            .await?;
+
+        assert_eq!(posts.len(), 5);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_find_with_two_tables_gt() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        let mut ctx = QueryContext::from_model(Post::get_schema(), conn.get_dialect());
+        conn.execute_query(&mut ctx).await?;
+        let user = User {
+            id: 1,
+            name: "test".to_string(),
+        };
+        for i in 0..6 {
+            let post = crate::Post {
+                id: i,
+                teacher_id: 1,
+                user: user.clone(),
+            };
+            post.save(&mut conn).await?;
+        }
+        let post = crate::Post {
+            id: 1,
+            teacher_id: 1,
+            user: User {
+                id: 1000,
+                name: "different".to_string(),
+            },
+        };
+        post.save(&mut conn).await?;
+        let posts = crate::Post::find()
+            .filter(crate::user::COLUMN.id.gt(1))
+            .all(&mut conn)
+            .await?;
+
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].user.id, 1000);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_find_with_two_tables_and_orders() -> Result<(), CorrosionOrmError> {
+        let db = init_sqlite().await;
+        let mut conn = db.acquire_conn().await.unwrap();
+        let mut ctx = QueryContext::from_model(Post::get_schema(), conn.get_dialect());
+        conn.execute_query(&mut ctx).await?;
+        let user = User {
+            id: 1,
+            name: "test".to_string(),
+        };
+        for i in 0..6 {
+            let post = crate::Post {
+                id: i,
+                teacher_id: 1,
+                user: user.clone(),
+            };
+            post.save(&mut conn).await?;
+        }
+        let post = crate::Post {
+            id: 1,
+            teacher_id: 1,
+            user: User {
+                id: 1000,
+                name: "different".to_string(),
+            },
+        };
+        post.save(&mut conn).await?;
+        let posts = crate::Post::find()
+            .filter(crate::user::COLUMN.id.eq(1))
+            .add_order_by(crate::post::COLUMN.id.desc())
+            .all(&mut conn)
+            .await?;
+
+        assert_eq!(posts.len(), 5);
+        assert_eq!(posts[0].id, 5);
+        assert_eq!(posts[4].id, 0);
         Ok(())
     }
 }

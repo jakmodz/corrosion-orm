@@ -10,7 +10,7 @@ use crate::{
 #[derive(Clone)]
 pub enum LazyCollectionCondition<C: ColumnTrait> {
     ByForeignKey { fk_column: C, value: Value },
-    ByFilter(WhereClause<C>),
+    ByFilter(WhereClause),
 }
 
 #[derive(Clone)]

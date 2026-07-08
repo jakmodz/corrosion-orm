@@ -67,7 +67,7 @@
 use crate::{
     CorrosionOrmError, Executor,
     driver::from_row_db::FromRowDb,
-    model::{CacheModel, Finder},
+    model::{CacheModel, Finder, repository::Repo},
     prelude::Value,
     query::WhereClause,
     types::ColumnTrait,
@@ -81,7 +81,7 @@ pub struct CursorPaginator<'query, T, E: Executor, C: ColumnTrait> {
 
 impl<'query, T, E: Executor, C: ColumnTrait> CursorPaginator<'query, T, E, C>
 where
-    T: Send + Unpin + Clone + FromRowDb + CacheModel,
+    T: Send + Unpin + Clone + FromRowDb + CacheModel + Repo<E>,
 {
     pub fn new(finder: Finder<'query, T, E, C>, page_size: usize) -> Self {
         Self {

@@ -18,15 +18,15 @@ macro_rules! create_boiler_plate {
                 OrderBy::new(self.column.clone(), OrderDirection::Desc)
             }
             /// Creates a `WhereClause` for equality comparison with a value.
-            pub fn eq<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+            pub fn eq<V: Into<Value>>(self, val: V) -> WhereClause {
                 WhereClause::eq(self.column, val)
             }
             /// Creates a `WhereClause` for inequality comparison with a value.
-            pub fn ne<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+            pub fn ne<V: Into<Value>>(self, val: V) -> WhereClause {
                 WhereClause::ne(self.column, val)
             }
             /// Creates a `WhereClause` for `IS NULL` comparison.
-            pub fn is_null(self) -> WhereClause<C> {
+            pub fn is_null(self) -> WhereClause {
                 WhereClause::is_null(self.column)
             }
         }
@@ -44,21 +44,21 @@ impl<C: ColumnTrait> StringColumn<C> {
     }
 
     /// Creates a `WhereClause` for `LIKE` comparison with a value.
-    pub fn like<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn like<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::new(WhereClauseType::Condition(Condition::like(
             self.column,
             val,
         )))
     }
     /// Creates a `WhereClause` for `NOT LIKE` comparison with a value.
-    pub fn not_like<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn not_like<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::new(WhereClauseType::Condition(Condition::not_like(
             self.column,
             val,
         )))
     }
     /// Creates a `WhereClause` for `CONTAINS` comparison with a value.
-    pub fn contains<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn contains<V: Into<Value>>(self, val: V) -> WhereClause {
         let val_str = match val.into() {
             Value::String(s) => s,
             other => format!("{:?}", other),
@@ -69,7 +69,7 @@ impl<C: ColumnTrait> StringColumn<C> {
         )))
     }
     /// Creates a `WhereClause` for `STARTS WITH` comparison with a value.
-    pub fn starts_with<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn starts_with<V: Into<Value>>(self, val: V) -> WhereClause {
         let val_str = match val.into() {
             Value::String(s) => s,
             other => format!("{:?}", other),
@@ -80,7 +80,7 @@ impl<C: ColumnTrait> StringColumn<C> {
         )))
     }
     /// Creates a `WhereClause` for `ENDS WITH` comparison with a value.
-    pub fn ends_with<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn ends_with<V: Into<Value>>(self, val: V) -> WhereClause {
         let val_str = match val.into() {
             Value::String(s) => s,
             other => format!("{:?}", other),
@@ -91,7 +91,7 @@ impl<C: ColumnTrait> StringColumn<C> {
         )))
     }
     /// Creates a `WhereClause` for `IN` comparison with a list of values.
-    pub fn in_<V: Into<Value>>(self, vals: Vec<V>) -> WhereClause<C> {
+    pub fn in_<V: Into<Value>>(self, vals: Vec<V>) -> WhereClause {
         let values: Vec<Value> = vals.into_iter().map(|v| v.into()).collect();
         WhereClause::in_(self.column, values)
     }
@@ -107,23 +107,23 @@ impl<C: ColumnTrait> NumericColumn<C> {
         Self { column }
     }
     /// Creates a `WhereClause` for greater-than comparison with a value.
-    pub fn gt<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn gt<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::gt(self.column, val)
     }
     /// Creates a `WhereClause` for greater-than-or-equal comparison with a value.
-    pub fn gte<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn gte<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::new(WhereClauseType::Condition(Condition::gte(self.column, val)))
     }
     /// Creates a `WhereClause` for less-than comparison with a value.
-    pub fn lt<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn lt<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::lt(self.column, val)
     }
     /// Creates a `WhereClause` for less-than-or-equal comparison with a value.
-    pub fn lte<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn lte<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::new(WhereClauseType::Condition(Condition::lte(self.column, val)))
     }
 
-    pub fn between<V: Into<Value>>(self, min: V, max: V) -> WhereClause<C> {
+    pub fn between<V: Into<Value>>(self, min: V, max: V) -> WhereClause {
         WhereClause::new(WhereClauseType::Condition(Condition::between(
             self.column,
             min,
@@ -131,7 +131,7 @@ impl<C: ColumnTrait> NumericColumn<C> {
         )))
     }
 
-    pub fn in_<V: Into<Value>>(self, vals: Vec<V>) -> WhereClause<C> {
+    pub fn in_<V: Into<Value>>(self, vals: Vec<V>) -> WhereClause {
         let values: Vec<Value> = vals.into_iter().map(|v| v.into()).collect();
         WhereClause::in_(self.column, values)
     }
@@ -147,23 +147,23 @@ impl<C: ColumnTrait> DateLikeColumn<C> {
         Self { column }
     }
 
-    pub fn gt<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn gt<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::gt(self.column, val)
     }
 
-    pub fn gte<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn gte<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::new(WhereClauseType::Condition(Condition::gte(self.column, val)))
     }
 
-    pub fn lt<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn lt<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::lt(self.column, val)
     }
 
-    pub fn lte<V: Into<Value>>(self, val: V) -> WhereClause<C> {
+    pub fn lte<V: Into<Value>>(self, val: V) -> WhereClause {
         WhereClause::new(WhereClauseType::Condition(Condition::lte(self.column, val)))
     }
 
-    pub fn between<V: Into<Value>>(self, min: V, max: V) -> WhereClause<C> {
+    pub fn between<V: Into<Value>>(self, min: V, max: V) -> WhereClause {
         WhereClause::new(WhereClauseType::Condition(Condition::between(
             self.column,
             min,

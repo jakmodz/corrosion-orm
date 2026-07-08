@@ -218,7 +218,8 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 #orm::query::query_type::Value::from(self.#pk_ident.clone())
             }
 
-            pub(crate) async fn load_relations<Db: #orm::driver::executor::Executor>(&mut self, db: &mut Db) -> Result<(), #orm::error::CorrosionOrmError> {
+            pub(crate) async fn load_relations_inner<Db: #orm::driver::executor::Executor>(&mut self, db: &mut Db) -> Result<(), #orm::error::CorrosionOrmError> {
+                use #orm::model::repository::Repo;
                 #load_relations_body
             }
         }
@@ -289,7 +290,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                     db.execute_query(&mut ctx).await?;
                 } else {
                     let update_values = self.get_all_values_with_db(db).await?;
-                    let mut update_query = #orm::query::update::Update::<#mod_name::Column>::from(&schema)
+                    let mut update_query = #orm::query::update::Update::from(&schema)
                         .values(update_values)
                         .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, self.#pk_ident.clone()));
                     update_query.to_sql(&mut ctx, db.get_dialect());
@@ -311,7 +312,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 if let Some(ref mut entity) = saved {
                     #(#cascade_save_after_stmts)*
                     #(#struct_update_stmts)*
-                    entity.load_relations(db).await?;
+                    entity.load_relations_inner(db).await?;
                     #orm::model::cache::put_entity(__cache_scope, entity).await;
                     #orm::model::cache::invalidate_queries::<Self>();
                 }
@@ -351,7 +352,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
                 let mut ids = Vec::with_capacity(results.len());
                 for result in &mut results {
-                    result.load_relations(db).await?;
+                    result.load_relations_inner(db).await?;
                     ids.push(result.get_id());
                     #orm::model::cache::put_entity(__cache_scope, result).await;
                 }
@@ -378,7 +379,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 let mut result = db.fetch_optional::<Self>(&mut ctx).await?;
 
                 if let Some(ref mut entity) = result {
-                    entity.load_relations(db).await?;
+                    entity.load_relations_inner(db).await?;
                     #orm::model::cache::put_entity(__cache_scope, entity).await;
                 }
 
@@ -399,7 +400,7 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
 
                 let mut ctx = QueryContext::new();
                 let schema = Self::get_schema();
-                let delete_query = Delete::<#mod_name::Column>::from(&schema)
+                let delete_query = Delete::from(&schema)
                     .where_clause(WhereClause::eq(#mod_name::Column::#pk_column_variant, entity_pk.clone()));
                 delete_query.to_sql(&mut ctx, db.get_dialect());
                 db.execute_query(&mut ctx).await?;
@@ -409,6 +410,10 @@ pub(crate) fn generate_repository(table: &TableData) -> proc_macro2::TokenStream
                 #orm::model::cache::invalidate_entity::<Self>(__cache_scope, &entity_pk).await;
                 #orm::model::cache::invalidate_queries::<Self>();
                 Ok(())
+            }
+
+            async fn load_relations(&mut self, db: &mut Db) -> Result<(), #orm::error::CorrosionOrmError> {
+                self.load_relations_inner(db).await
             }
 
             fn find<'query>() -> #orm::model::Finder<'query, Self, Db, Self::Column> {

@@ -29,4 +29,6 @@ pub trait Repository<Db: Executor>: Sized + Sync {
     ///
     /// Returns a [`Finder`] that can be used to execute the query and retrieve the results.
     fn find<'query>() -> Finder<'query, Self, Db, Self::Column>;
+    /// Loads all eager relations for this entity.
+    async fn load_relations(&mut self, db: &mut Db) -> Result<(), CorrosionOrmError>;
 }
