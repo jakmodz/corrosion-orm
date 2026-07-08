@@ -39,7 +39,7 @@ mod tests {
         }
     }
 
-    fn render_delete(delete: Delete<Col>) -> (String, Vec<Value>) {
+    fn render_delete(delete: Delete) -> (String, Vec<Value>) {
         let mut ctx = QueryContext::new();
         delete.to_sql(&mut ctx, &MockSqliteDialect);
         (ctx.sql, ctx.values)

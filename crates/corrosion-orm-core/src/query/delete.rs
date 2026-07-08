@@ -2,7 +2,6 @@ use crate::{
     dialect::sql_dialect::SqlDialect,
     prelude::TableSchemaModel,
     query::{query_type::QueryContext, to_sql::ToSql, where_clause::WhereClause},
-    types::ColumnTrait,
 };
 use std::borrow::Cow;
 /// DELETE query builder.
@@ -25,15 +24,15 @@ use std::borrow::Cow;
 ///     }
 /// }
 ///
-/// let query = Delete::<UserColumn>::new("users")
+/// let query = Delete::new("users")
 ///     .where_clause(WhereClause::eq(UserColumn::Id, 1));
 /// ```
-pub struct Delete<'query, C: ColumnTrait> {
+pub struct Delete<'query> {
     table: Cow<'query, str>,
-    where_clause: Option<WhereClause<C>>,
+    where_clause: Option<WhereClause>,
 }
 
-impl<'query, C: ColumnTrait> Delete<'query, C> {
+impl<'query> Delete<'query> {
     pub fn new(table: &'query str) -> Self {
         Self {
             table: Cow::Borrowed(table),
@@ -41,13 +40,13 @@ impl<'query, C: ColumnTrait> Delete<'query, C> {
         }
     }
 
-    pub fn where_clause(mut self, clause: WhereClause<C>) -> Self {
+    pub fn where_clause(mut self, clause: WhereClause) -> Self {
         self.where_clause = Some(clause);
         self
     }
 }
 
-impl<'query, C: ColumnTrait> ToSql for Delete<'query, C> {
+impl<'query> ToSql for Delete<'query> {
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         ctx.sql.push_str(&format!("DELETE FROM {} ", self.table));
         if let Some(clause) = &self.where_clause {
@@ -56,7 +55,7 @@ impl<'query, C: ColumnTrait> ToSql for Delete<'query, C> {
         }
     }
 }
-impl<'query, C: ColumnTrait> From<&'query TableSchemaModel> for Delete<'query, C> {
+impl<'query> From<&'query TableSchemaModel> for Delete<'query> {
     fn from(table: &'query TableSchemaModel) -> Self {
         Self {
             table: Cow::Borrowed(table.name.as_str()),

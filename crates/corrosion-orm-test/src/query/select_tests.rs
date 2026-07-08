@@ -77,7 +77,7 @@ mod tests {
     fn test_select_with_simple_where() {
         let where_clause = WhereClause {
             clause: WhereClauseType::Condition(Condition::Eq(
-                Col("status"),
+                Col("status").as_qualified(),
                 Value::String("active".to_string()),
             )),
         };
@@ -92,7 +92,10 @@ mod tests {
     #[test]
     fn test_select_with_where_and_limit() {
         let where_clause = WhereClause {
-            clause: WhereClauseType::Condition(Condition::Gt(Col("age"), Value::Int(18))),
+            clause: WhereClauseType::Condition(Condition::Gt(
+                Col("age").as_qualified(),
+                Value::Int(18),
+            )),
         };
         let select = Select::new("users")
             .add_column("name")
@@ -122,11 +125,11 @@ mod tests {
         let where_clause = WhereClause {
             clause: WhereClauseType::And(
                 Box::new(WhereClauseType::Condition(Condition::Eq(
-                    Col("status"),
+                    Col("status").as_qualified(),
                     Value::String("active".to_string()),
                 ))),
                 Box::new(WhereClauseType::Condition(Condition::Gt(
-                    Col("score"),
+                    Col("score").as_qualified(),
                     Value::Int(50),
                 ))),
             ),
@@ -143,11 +146,11 @@ mod tests {
         let where_clause = WhereClause {
             clause: WhereClauseType::Or(
                 Box::new(WhereClauseType::Condition(Condition::Eq(
-                    Col("role"),
+                    Col("role").as_qualified(),
                     Value::String("admin".to_string()),
                 ))),
                 Box::new(WhereClauseType::Condition(Condition::Eq(
-                    Col("role"),
+                    Col("role").as_qualified(),
                     Value::String("moderator".to_string()),
                 ))),
             ),
@@ -163,7 +166,7 @@ mod tests {
     fn test_select_with_in_condition() {
         let where_clause = WhereClause {
             clause: WhereClauseType::Condition(Condition::In(
-                Col("status"),
+                Col("status").as_qualified(),
                 vec![
                     Value::String("pending".to_string()),
                     Value::String("active".to_string()),
@@ -203,7 +206,7 @@ mod tests {
     fn test_select_with_like_condition() {
         let where_clause = WhereClause {
             clause: WhereClauseType::Condition(Condition::Like(
-                Col("email"),
+                Col("email").as_qualified(),
                 Value::String("%@gmail.com".to_string()),
             )),
         };
@@ -217,7 +220,7 @@ mod tests {
     #[test]
     fn test_select_with_is_null() {
         let where_clause = WhereClause {
-            clause: WhereClauseType::Condition(Condition::IsNull(Col("deleted_at"))),
+            clause: WhereClauseType::Condition(Condition::IsNull(Col("deleted_at").as_qualified())),
         };
         let select = Select::new("posts")
             .add_column("title")
@@ -247,7 +250,7 @@ mod tests {
     fn test_select_with_not_condition() {
         let where_clause = WhereClause {
             clause: WhereClauseType::Not(Box::new(WhereClauseType::Condition(Condition::Eq(
-                Col("banned"),
+                Col("banned").as_qualified(),
                 Value::Bool(true),
             )))),
         };
@@ -264,16 +267,16 @@ mod tests {
             clause: WhereClauseType::And(
                 Box::new(WhereClauseType::Or(
                     Box::new(WhereClauseType::Condition(Condition::Eq(
-                        Col("role"),
+                        Col("role").as_qualified(),
                         Value::String("admin".to_string()),
                     ))),
                     Box::new(WhereClauseType::Condition(Condition::Eq(
-                        Col("role"),
+                        Col("role").as_qualified(),
                         Value::String("moderator".to_string()),
                     ))),
                 )),
                 Box::new(WhereClauseType::Condition(Condition::Gt(
-                    Col("experience"),
+                    Col("experience").as_qualified(),
                     Value::Int(5),
                 ))),
             ),

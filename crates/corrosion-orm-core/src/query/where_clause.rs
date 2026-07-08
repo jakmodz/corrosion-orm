@@ -4,54 +4,54 @@ use crate::{
         query_type::{QueryContext, Value},
         to_sql::ToSql,
     },
-    types::ColumnTrait,
+    types::{ColumnTrait, column_ref::ColumnRef},
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct WhereClause<C: ColumnTrait> {
-    pub clause: WhereClauseType<C>,
+pub struct WhereClause {
+    pub clause: WhereClauseType,
 }
 
-impl<C: ColumnTrait> WhereClause<C> {
-    pub fn new(clause: WhereClauseType<C>) -> Self {
+impl WhereClause {
+    pub fn new(clause: WhereClauseType) -> Self {
         Self { clause }
     }
 
-    pub fn eq<V: Into<Value>>(col: C, val: V) -> Self {
+    pub fn eq<C: ColumnTrait, V: Into<Value>>(col: C, val: V) -> Self {
         Self::new(WhereClauseType::Condition(Condition::eq(col, val)))
     }
 
-    pub fn ne<V: Into<Value>>(col: C, val: V) -> Self {
+    pub fn ne<C: ColumnTrait, V: Into<Value>>(col: C, val: V) -> Self {
         Self::new(WhereClauseType::Condition(Condition::ne(col, val)))
     }
 
-    pub fn gt<V: Into<Value>>(col: C, val: V) -> Self {
+    pub fn gt<C: ColumnTrait, V: Into<Value>>(col: C, val: V) -> Self {
         Self::new(WhereClauseType::Condition(Condition::gt(col, val)))
     }
 
-    pub fn lt<V: Into<Value>>(col: C, val: V) -> Self {
+    pub fn lt<C: ColumnTrait, V: Into<Value>>(col: C, val: V) -> Self {
         Self::new(WhereClauseType::Condition(Condition::lt(col, val)))
     }
 
-    pub fn is_null(col: C) -> Self {
+    pub fn is_null<C: ColumnTrait>(col: C) -> Self {
         Self::new(WhereClauseType::Condition(Condition::is_null(col)))
     }
 
-    pub fn in_<V: Into<Value>>(col: C, vals: Vec<V>) -> Self {
+    pub fn in_<C: ColumnTrait, V: Into<Value>>(col: C, vals: Vec<V>) -> Self {
         Self::new(WhereClauseType::Condition(Condition::in_(
             col,
             vals.into_iter().map(|v| v.into()).collect(),
         )))
     }
 
-    pub fn and(self, other: WhereClause<C>) -> Self {
+    pub fn and(self, other: WhereClause) -> Self {
         Self::new(WhereClauseType::And(
             Box::new(self.clause),
             Box::new(other.clause),
         ))
     }
 
-    pub fn or(self, other: WhereClause<C>) -> Self {
+    pub fn or(self, other: WhereClause) -> Self {
         Self::new(WhereClauseType::Or(
             Box::new(self.clause),
             Box::new(other.clause),
@@ -62,7 +62,7 @@ impl<C: ColumnTrait> WhereClause<C> {
         Self::new(WhereClauseType::Not(Box::new(self.clause)))
     }
 
-    pub fn seek_after(
+    pub fn seek_after<C: ColumnTrait>(
         sort_col: C,
         last_val: impl Into<Value>,
         unique_col: C,
@@ -79,14 +79,14 @@ impl<C: ColumnTrait> WhereClause<C> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum WhereClauseType<C: ColumnTrait> {
-    Condition(Condition<C>),
-    And(Box<WhereClauseType<C>>, Box<WhereClauseType<C>>),
-    Or(Box<WhereClauseType<C>>, Box<WhereClauseType<C>>),
-    Not(Box<WhereClauseType<C>>),
+pub enum WhereClauseType {
+    Condition(Condition),
+    And(Box<WhereClauseType>, Box<WhereClauseType>),
+    Or(Box<WhereClauseType>, Box<WhereClauseType>),
+    Not(Box<WhereClauseType>),
 }
 
-impl<C: ColumnTrait> WhereClauseType<C> {
+impl WhereClauseType {
     fn render_with_parens(
         &self,
         ctx: &mut QueryContext,
@@ -125,35 +125,35 @@ impl<C: ColumnTrait> WhereClauseType<C> {
     }
 }
 
-impl<C: ColumnTrait> ToSql for WhereClause<C> {
+impl ToSql for WhereClause {
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         self.clause.to_sql(ctx, dialect);
     }
 }
 
-impl<C: ColumnTrait> ToSql for WhereClauseType<C> {
+impl ToSql for WhereClauseType {
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         self.render_with_parens(ctx, dialect, false);
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Condition<C: ColumnTrait> {
-    Eq(C, Value),
-    Ne(C, Value),
-    Lt(C, Value),
-    Gt(C, Value),
-    Lte(C, Value),
-    Gte(C, Value),
-    IsNull(C),
-    In(C, Vec<Value>),
-    NotIn(C, Vec<Value>),
-    Like(C, Value),
-    NotLike(C, Value),
-    Between(C, Value, Value),
+pub enum Condition {
+    Eq(ColumnRef, Value),
+    Ne(ColumnRef, Value),
+    Lt(ColumnRef, Value),
+    Gt(ColumnRef, Value),
+    Lte(ColumnRef, Value),
+    Gte(ColumnRef, Value),
+    IsNull(ColumnRef),
+    In(ColumnRef, Vec<Value>),
+    NotIn(ColumnRef, Vec<Value>),
+    Like(ColumnRef, Value),
+    NotLike(ColumnRef, Value),
+    Between(ColumnRef, Value, Value),
 }
 
-impl<C: ColumnTrait> ToSql for Condition<C> {
+impl ToSql for Condition {
     /// Render this condition as a SQL expression into the given query context.
     ///
     /// The method writes SQL text into `ctx.sql` and pushes any parameter values
@@ -164,35 +164,10 @@ impl<C: ColumnTrait> ToSql for Condition<C> {
     ///
     /// - `ctx`: Target query context receiving SQL text and bind parameters.
     /// - `dialect`: SQL dialect used when formatting bind parameters.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use corrosion_orm_core::prelude::*;
-    /// use corrosion_orm_core::query::where_clause::Condition;
-    /// # use corrosion_orm_core::types::column_trait::ColumnTrait;
-    /// # use corrosion_orm_core::types::column_ref::ColumnRef;
-    /// # #[derive(Debug, Clone, Copy, PartialEq)]
-    /// # struct MockColumn;
-    /// # impl ColumnTrait for MockColumn {
-    /// #     fn table_name(&self) -> &'static str { "users" }
-    /// #     fn column_name(&self) -> &'static str { "id" }
-    /// # }
-    ///
-    /// let mut ctx = QueryContext::default();
-    /// # #[cfg(feature = "sqlite")]
-    /// # {
-    /// # use corrosion_orm_core::dialect::sqlite_dialect::SqliteDialect;
-    /// let dialect = SqliteDialect;
-    /// let cond = Condition::Eq(MockColumn, Value::from(42));
-    /// cond.to_sql(&mut ctx, &dialect);
-    /// assert!(ctx.sql.contains("id ="));
-    /// # }
-    /// ```
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         macro_rules! binary_op {
             ($col:expr, $val:expr, $op:expr) => {{
-                $col.as_qualified().render(ctx);
+                $col.render(ctx);
                 ctx.sql.push_str($op);
                 ctx.push_bind_param($val.clone(), dialect);
             }};
@@ -208,13 +183,13 @@ impl<C: ColumnTrait> ToSql for Condition<C> {
             Condition::Like(c, v) => binary_op!(c, v, " LIKE "),
             Condition::NotLike(c, v) => binary_op!(c, v, " NOT LIKE "),
             Condition::IsNull(c) => {
-                c.as_qualified().render(ctx);
+                c.render(ctx);
                 ctx.sql.push_str(" IS NULL");
             }
             Condition::In(c, vals) => self.render_list_op(ctx, dialect, c, " IN ", vals),
             Condition::NotIn(c, vals) => self.render_list_op(ctx, dialect, c, " NOT IN ", vals),
             Condition::Between(c, min, max) => {
-                c.as_qualified().render(ctx);
+                c.render(ctx);
                 ctx.sql.push_str(" BETWEEN ");
                 ctx.push_bind_param(min.clone(), dialect);
                 ctx.sql.push_str(" AND ");
@@ -225,12 +200,12 @@ impl<C: ColumnTrait> ToSql for Condition<C> {
 }
 macro_rules! condition_impl {
     ($name:ident, $variant:ident) => {
-        pub fn $name<V: Into<Value>>(col: C, value: V) -> Self {
-            Condition::$variant(col, value.into())
+        pub fn $name<C: ColumnTrait, V: Into<Value>>(col: C, value: V) -> Self {
+            Condition::$variant(col.as_qualified(), value.into())
         }
     };
 }
-impl<C: ColumnTrait> Condition<C> {
+impl Condition {
     /// Render a column membership predicate ("IN"/"NOT IN") by emitting the qualified column,
     /// the operator, and a parenthesized, comma-separated list of bound values.
     ///
@@ -244,11 +219,11 @@ impl<C: ColumnTrait> Condition<C> {
         &self,
         ctx: &mut QueryContext,
         dialect: &dyn SqlDialect,
-        col: &C,
+        col: &ColumnRef,
         op: &str,
         vals: &[Value],
     ) {
-        col.as_qualified().render(ctx);
+        col.render(ctx);
         ctx.sql.push_str(op);
         ctx.sql.push('(');
         for (i, v) in vals.iter().enumerate() {
@@ -269,16 +244,19 @@ impl<C: ColumnTrait> Condition<C> {
     condition_impl!(like, Like);
     condition_impl!(not_like, NotLike);
 
-    pub fn is_null(col: C) -> Self {
-        Condition::IsNull(col)
+    pub fn is_null<C: ColumnTrait>(col: C) -> Self {
+        Condition::IsNull(col.as_qualified())
     }
-    pub fn in_(col: C, values: Vec<Value>) -> Self {
-        Condition::In(col, values)
+    pub fn in_<C: ColumnTrait>(col: C, values: Vec<Value>) -> Self {
+        Condition::In(col.as_qualified(), values)
     }
-    pub fn not_in<V: Into<Value>>(col: C, values: Vec<V>) -> Self {
-        Condition::NotIn(col, values.into_iter().map(|v| v.into()).collect())
+    pub fn not_in<C: ColumnTrait, V: Into<Value>>(col: C, values: Vec<V>) -> Self {
+        Condition::NotIn(
+            col.as_qualified(),
+            values.into_iter().map(|v| v.into()).collect(),
+        )
     }
-    pub fn between<V: Into<Value>>(col: C, min: V, max: V) -> Self {
-        Condition::Between(col, min.into(), max.into())
+    pub fn between<C: ColumnTrait, V: Into<Value>>(col: C, min: V, max: V) -> Self {
+        Condition::Between(col.as_qualified(), min.into(), max.into())
     }
 }

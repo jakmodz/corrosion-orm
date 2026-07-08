@@ -6,7 +6,6 @@ use crate::{
         to_sql::ToSql,
         where_clause::WhereClause,
     },
-    types::ColumnTrait,
 };
 use std::borrow::Cow;
 /// UPDATE query builder.
@@ -30,19 +29,19 @@ use std::borrow::Cow;
 ///     }
 /// }
 ///
-/// let query = Update::<UserColumn>::new()
+/// let query = Update::new()
 ///     .table("users".into())
 ///     .columns(vec!["status"])
 ///     .values(vec!["active"])
 ///     .where_clause(WhereClause::eq(UserColumn::Id, 1));
 /// ```
-pub struct Update<'query, C: ColumnTrait> {
+pub struct Update<'query> {
     table: Cow<'query, str>,
     columns: Vec<Cow<'query, str>>,
     values: Vec<Value>,
-    where_clause: Option<WhereClause<C>>,
+    where_clause: Option<WhereClause>,
 }
-impl<'query, C: ColumnTrait> Update<'query, C> {
+impl<'query> Update<'query> {
     pub fn new() -> Self {
         Self {
             table: Cow::Owned(String::new()),
@@ -55,7 +54,7 @@ impl<'query, C: ColumnTrait> Update<'query, C> {
         self.table = table;
         self
     }
-    pub fn where_clause(mut self, where_clause: WhereClause<C>) -> Self {
+    pub fn where_clause(mut self, where_clause: WhereClause) -> Self {
         self.where_clause = Some(where_clause);
         self
     }
@@ -68,12 +67,12 @@ impl<'query, C: ColumnTrait> Update<'query, C> {
         self
     }
 }
-impl<'query, C: ColumnTrait> Default for Update<'query, C> {
+impl<'query> Default for Update<'query> {
     fn default() -> Self {
         Self::new()
     }
 }
-impl<'query, C: ColumnTrait> ToSql for Update<'query, C> {
+impl<'query> ToSql for Update<'query> {
     fn to_sql(&self, ctx: &mut QueryContext, dialect: &dyn SqlDialect) {
         ctx.sql
             .push_str(&format!("UPDATE {} SET ", self.table.as_ref()));
@@ -105,7 +104,7 @@ impl<'query, C: ColumnTrait> ToSql for Update<'query, C> {
     }
 }
 
-impl<'query, C: ColumnTrait> From<&'query TableSchemaModel> for Update<'query, C> {
+impl<'query> From<&'query TableSchemaModel> for Update<'query> {
     fn from(schema: &'query TableSchemaModel) -> Self {
         Update {
             table: Cow::Borrowed(&schema.name),
